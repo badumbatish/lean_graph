@@ -9,6 +9,7 @@ where
 {
     fn new() -> Self;
     fn add_vertex(&mut self, vertex: V);
+    fn remove_vertex(&mut self, vertex: V);
     fn add_edge(&mut self, from: V, to: V, edge: E);
     fn remove_edge(&mut self, from: &V, to: &V, edge: E);
     fn has_vertex(&self, vertex: &V) -> bool;

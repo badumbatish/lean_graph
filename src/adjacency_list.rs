@@ -3,7 +3,7 @@ use std::{
     hash::Hash,
 };
 
-use crate::{storage::GraphStorage, u_graph::UGraph};
+use crate::{storage::GraphStorage};
 
 pub struct AdjacencyList<V, E> {
     adjacency_list: HashMap<V, HashSet<(V, E)>>,
@@ -20,6 +20,12 @@ where
         }
     }
 
+    fn remove_vertex(&mut self, vertex: V) {
+        self.adjacency_list.remove(&vertex);
+        for neighbors in self.adjacency_list.values_mut() {
+            neighbors.retain(|(v, _)| v != &vertex);
+        }
+    }
     fn add_vertex(&mut self, vertex: V) {
         self.adjacency_list
             .entry(vertex.clone())
