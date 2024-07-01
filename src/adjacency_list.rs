@@ -3,8 +3,7 @@ use std::{
     hash::Hash,
 };
 
-use crate::storage::GraphStorage;
-use crate::storage::VertexError;
+use crate::{storage::GraphStorage, u_graph::UGraph};
 
 pub struct AdjacencyList<V, E> {
     adjacency_list: HashMap<V, HashSet<(V, E)>>,
@@ -28,30 +27,47 @@ where
     }
 
     fn add_edge(&mut self, from: V, to: V, edge: E) {
+        // Add two vertices to the graph since the representation
+        // is adjacency list.
         self.add_vertex(from.clone());
+        self.add_vertex(to.clone());
         self.adjacency_list
             .get_mut(&from)
             .unwrap()
             .insert((to, edge));
     }
 
+    // Remove the edge from the adjancency list if it exists
     fn remove_edge(&mut self, from: &V, to: &V, edge: E) {
-        todo!()
+        if let Some(neighbors) = self.adjacency_list.get_mut(from) {
+            neighbors.remove(&(to.clone(), edge));
+        }
     }
 
-    fn has_edge(&self, from: &V, to: &V, edge: E) -> bool {
-        todo!()
+    fn has_edge(&self, from: &V, to: &V, edge: &E) -> bool {
+        self.adjacency_list.contains_key(from)
+            && self.adjacency_list[from].contains(&(to.clone(), edge.clone()))
     }
 
-    fn neighbors(&self, vertex: &V) -> Vec<&V> {
-        todo!()
+    fn neighbors(&self, vertex: &V) -> Vec<(V, E)> {
+        Vec::from_iter(self.adjacency_list[vertex].iter().cloned())
     }
 
-    fn vertices(&self) -> Vec<&V> {
-        todo!()
+    fn vertices(&self) -> Vec<V> {
+        Vec::from_iter(self.adjacency_list.keys().cloned())
     }
 
-    fn edges(&self) -> Vec<&E> {
-        todo!()
+    fn edges(&self) -> Vec<E> {
+        let mut edges = HashSet::new();
+        for neighbors in self.adjacency_list.values() {
+            for (_, edge) in neighbors {
+                edges.insert(edge.clone());
+            }
+        }
+        Vec::from_iter(edges)
+    }
+
+    fn has_vertex(&self, vertex: &V) -> bool {
+        self.adjacency_list.contains_key(vertex)
     }
 }
