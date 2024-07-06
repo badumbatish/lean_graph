@@ -1,79 +1,84 @@
-use std::{
-    collections::{HashMap, HashSet},
-    hash::Hash,
-};
+use std::collections::{HashMap, HashSet};
 
-use crate::{storage::GraphStorage};
+use crate::storage::{Edge, GraphStorage, Vertex};
 
-pub struct AdjacencyList<V, E> {
-    adjacency_list: HashMap<V, HashSet<(V, E)>>,
+pub struct AdjacencyList {
+    adj_list: HashMap<Vertex, HashSet<(Vertex, Edge)>>,
 }
 
-impl<V, E> GraphStorage<V, E> for AdjacencyList<V, E>
-where
-    V: Eq + Hash + Clone,
-    E: Eq + Hash + Clone,
-{
-    fn new() -> Self {
-        AdjacencyList {
-            adjacency_list: Default::default(),
+impl GraphStorage for AdjacencyList {
+    fn add_vertex(&mut self, vertex: &Vertex) -> bool {
+        self.adj_list
+            .insert(vertex.clone(), HashSet::new())
+            .is_none()
+    }
+
+    fn remove_vertex(&mut self, vertex: &Vertex) -> bool {
+        self.adj_list.remove(vertex).is_some()
+    }
+
+    fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool {
+        if let Some(neighbors) = self.adj_list.get_mut(from) {
+            let at = (to.clone(), edge.clone());
+            neighbors.insert(at);
+            true
+        } else {
+            false
         }
     }
 
-    fn remove_vertex(&mut self, vertex: V) {
-        self.adjacency_list.remove(&vertex);
-        for neighbors in self.adjacency_list.values_mut() {
-            neighbors.retain(|(v, _)| v != &vertex);
-        }
-    }
-    fn add_vertex(&mut self, vertex: V) {
-        self.adjacency_list
-            .entry(vertex.clone())
-            .or_insert(Default::default());
-    }
-
-    fn add_edge(&mut self, from: V, to: V, edge: E) {
-        // Add two vertices to the graph since the representation
-        // is adjacency list.
-        self.add_vertex(from.clone());
-        self.add_vertex(to.clone());
-        self.adjacency_list
-            .get_mut(&from)
-            .unwrap()
-            .insert((to, edge));
-    }
-
-    // Remove the edge from the adjancency list if it exists
-    fn remove_edge(&mut self, from: &V, to: &V, edge: E) {
-        if let Some(neighbors) = self.adjacency_list.get_mut(from) {
-            neighbors.remove(&(to.clone(), edge));
+    fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool {
+        if let Some(neighbors) = self.adj_list.get_mut(from) {
+            let at = (to.clone(), edge.clone());
+            neighbors.remove(&at)
+        } else {
+            false
         }
     }
 
-    fn has_edge(&self, from: &V, to: &V, edge: &E) -> bool {
-        self.adjacency_list.contains_key(from)
-            && self.adjacency_list[from].contains(&(to.clone(), edge.clone()))
+    fn has_vertex(&self, vertex: &Vertex) -> bool {
+        self.adj_list.contains_key(vertex)
     }
 
-    fn neighbors(&self, vertex: &V) -> Vec<(V, E)> {
-        Vec::from_iter(self.adjacency_list[vertex].iter().cloned())
-    }
-
-    fn vertices(&self) -> Vec<V> {
-        Vec::from_iter(self.adjacency_list.keys().cloned())
-    }
-
-    fn edges(&self) -> Vec<E> {
-        let mut edges = HashSet::new();
-        for neighbors in self.adjacency_list.values() {
-            for (_, edge) in neighbors {
-                edges.insert(edge.clone());
-            }
+    fn has_edge(&self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool {
+        if let Some(neighbors) = self.adj_list.get(from) {
+            let at = (to.clone(), edge.clone());
+            neighbors.contains(&at)
+        } else {
+            false
         }
-        Vec::from_iter(edges)
     }
 
-    fn has_vertex(&self, vertex: &V) -> bool {
-        self.adjacency_list.contains_key(vertex)
+    fn neighbors(&self, vertex: &Vertex) -> Vec<(Vertex, Edge)> {
+        if let Some(neighbors) = self.adj_list.get(vertex) {
+            neighbors
+                .iter()
+                .map(|(v, e)| (v.clone(), e.clone()))
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn vertex_size(&self) -> u64 {
+        todo!()
+    }
+
+    fn edge_size(&self) -> u64 {
+        todo!()
+    }
+
+    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> bool {
+        todo!()
+    }
+
+    fn set_edge(
+        &mut self,
+        from: &Vertex,
+        to: &Vertex,
+        old_edge: &crate::storage::Edge,
+        new_edge: &crate::storage::Edge,
+    ) -> bool {
+        todo!()
     }
 }

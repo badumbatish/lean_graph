@@ -1,101 +1,67 @@
-use crate::storage::GraphStorage;
-use std::{
-    hash::Hash,
-};
-pub struct UGraph<V, E, S>
+use crate::storage::{DynamicStorage, Edge, Vertex};
+use crate::storage::{FixedStorage, GraphStorage};
+use delegate::delegate;
+pub struct UGraph<S>
 where
-    V: Eq + Hash + Clone,
-    E: Eq + Hash + Clone,
-    S: GraphStorage<V, E>,
+    S: GraphStorage,
 {
-    pub storage: S,
-    _phantom: std::marker::PhantomData<(V, E)>,
+    storage: S,
 }
-
-impl<V, E, S> UGraph<V, E, S>
+impl<S> GraphStorage for UGraph<S>
 where
-    V: Eq + Hash + Clone,
-    E: Eq + Hash + Clone,
-    S: GraphStorage<V, E>,
+    S: GraphStorage,
 {
-    pub fn new() -> Self {
-        UGraph {
-            storage: S::new(),
-            _phantom: std::marker::PhantomData,
+    fn edge_size(&self) -> u64 {
+        todo!()
+    }
+
+    fn vertex_size(&self) -> u64 {
+        todo!()
+    }
+
+    delegate! {
+        to self.storage {
+            fn add_vertex(&mut self, vertex: &Vertex) -> bool;
+            fn remove_vertex(&mut self, vertex: &Vertex) -> bool;
+            fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
+            fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
+            fn has_vertex(&self, vertex: &Vertex) -> bool;
+            fn has_edge(&self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
+            fn neighbors(&self, vertex: &Vertex) -> Vec<(Vertex, Edge)>;
         }
     }
-    pub fn neighbors(&self, vertex: &V) -> Vec<(V, E)> {
-        self.storage.neighbors(vertex)
+
+    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> bool {
+        todo!()
     }
 
-    pub fn has_vertex(&self, vertex: &V) -> bool {
-        self.storage.vertices().contains(vertex)
-    }
-
-    pub fn has_edge(&self, from: &V, to: &V, edge: &E) -> bool {
-        self.storage.has_edge(from, to, edge)
-    }
-
-    pub fn remove_edge(&mut self, from: &V, to: &V, edge: E) {
-        self.storage.remove_edge(from, to, edge);
-    }
-
-    pub fn remove_vertex(&mut self, vertex: V) {
-        self.storage.remove_vertex(vertex);
-    }
-
-    pub fn add_edge(&mut self, from: V, to: V, edge: E) {
-        self.storage.add_edge(from, to, edge);
-    }
-
-    pub fn edges(&self) -> Vec<E> {
-        self.storage.edges()
-    }
-
-    pub fn vertices(&self) -> Vec<V> {
-        self.storage.vertices()
-    }
-    pub fn add_vertex(&mut self, vertex: V) {
-        self.storage.add_vertex(vertex);
+    fn set_edge(
+        &mut self,
+        from: &Vertex,
+        to: &Vertex,
+        old_edge: &crate::storage::Edge,
+        new_edge: &crate::storage::Edge,
+    ) -> bool {
+        todo!()
     }
 }
-#[cfg(test)]
 
-mod u_graph_test_i32 {
-
-    use super::*;
-
-    fn test_edges_template<S: GraphStorage<i32, i32>>() {
-        let mut graph = UGraph::<i32, i32, S>::new();
-        assert!(graph.edges().is_empty());
-
-        graph.add_edge(1, 2, 3);
-        assert!(graph.edges().contains(&3));
-
-        graph.add_edge(2, 3, 4);
-        assert!(graph.edges().contains(&4));
-
-        assert_eq!(graph.edges().len(), 2);
-
-        graph.add_edge(1, 2, 5);
-        assert!(graph.edges().contains(&5));
-        assert_eq!(graph.edges().len(), 3);
-
-        graph.add_edge(1, 2, 3);
-        assert_eq!(graph.edges().len(), 3);
+impl<S> FixedStorage for UGraph<S>
+where
+    S: GraphStorage + FixedStorage,
+{
+    fn new(size: u32) -> Self {
+        UGraph {
+            storage: S::new(size),
+        }
     }
+}
 
-    fn test_vertices_template<S: GraphStorage<i32, i32>>() {
-        let mut graph = UGraph::<i32, i32, S>::new();
-        assert!(graph.vertices().is_empty());
-
-        graph.add_vertex(1);
-        assert!(graph.vertices().contains(&1));
-    }
-
-    #[test]
-    fn test_adj_list() {
-        test_edges_template::<crate::adjacency_list::AdjacencyList<i32, i32>>();
-        test_vertices_template::<crate::adjacency_list::AdjacencyList<i32, i32>>();
+impl<S> DynamicStorage for UGraph<S>
+where
+    S: GraphStorage + DynamicStorage,
+{
+    fn new() -> Self {
+        UGraph { storage: S::new() }
     }
 }
