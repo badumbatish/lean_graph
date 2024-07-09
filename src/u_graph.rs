@@ -27,15 +27,15 @@ where
             fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
             fn has_vertex(&self, vertex: &Vertex) -> bool;
             fn has_edge(&self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
-            fn neighbors(&self, vertex: &Vertex) -> Vec<(Vertex, Edge)>;
+            fn neighbors(&self, vertex: &Vertex) -> Option<Vec<(Vertex, Edge)>>;
             fn set_edge(
                 &mut self,
                 from: &Vertex,
                 to: &Vertex,
                 old_edge: &Edge,
                 new_edge: &Edge
-            ) -> bool ;
-            fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> bool;
+            ) -> Option<bool>;
+            fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool>;
         }
     }
 }
@@ -59,3 +59,14 @@ where
         UGraph { storage: S::new() }
     }
 }
+#[cfg(test)]
+mod u_graph {
+    use crate::adjacency_matrix::BinaryAdjMatrix;
+
+    use super::*;
+    #[test]
+    fn test() {}
+}
+
+#[test]
+fn a() {}

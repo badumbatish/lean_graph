@@ -49,14 +49,16 @@ impl GraphStorage for AdjacencyList {
         }
     }
 
-    fn neighbors(&self, vertex: &Vertex) -> Vec<(Vertex, Edge)> {
+    fn neighbors(&self, vertex: &Vertex) -> Option<Vec<(Vertex, Edge)>> {
         if let Some(neighbors) = self.adj_list.get(vertex) {
-            neighbors
-                .iter()
-                .map(|(v, e)| (v.clone(), e.clone()))
-                .collect()
+            Some(
+                neighbors
+                    .iter()
+                    .map(|(v, e)| (v.clone(), e.clone()))
+                    .collect(),
+            )
         } else {
-            Vec::new()
+            None
         }
     }
 
@@ -68,7 +70,7 @@ impl GraphStorage for AdjacencyList {
         todo!()
     }
 
-    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> bool {
+    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool> {
         todo!()
     }
 
@@ -78,7 +80,7 @@ impl GraphStorage for AdjacencyList {
         to: &Vertex,
         old_edge: &crate::storage::Edge,
         new_edge: &crate::storage::Edge,
-    ) -> bool {
+    ) -> Option<bool> {
         todo!()
     }
 }

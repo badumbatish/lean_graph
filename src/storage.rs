@@ -52,7 +52,7 @@ pub trait GraphStorage {
     fn edge_size(&self) -> u64;
     fn vertex_size(&self) -> u64;
     fn add_vertex(&mut self, vertex: &Vertex) -> bool;
-    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> bool;
+    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool>;
     fn remove_vertex(&mut self, vertex: &Vertex) -> bool;
     fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
     fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
@@ -63,7 +63,13 @@ pub trait GraphStorage {
         to: &Vertex,
         old_edge: &crate::storage::Edge,
         new_edge: &crate::storage::Edge,
-    ) -> bool;
+    ) -> Option<bool>;
     fn has_edge(&self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
-    fn neighbors(&self, vertex: &Vertex) -> Vec<(Vertex, Edge)>;
+    fn neighbors(&self, vertex: &Vertex) -> Option<Vec<(Vertex, Edge)>>;
 }
+
+#[cfg(test)]
+mod fixed_storage {}
+
+#[cfg(test)]
+mod dynamic_storage {}

@@ -89,21 +89,27 @@ impl GraphStorage for BinaryAdjMatrix {
         return self.hash.contains_key(from) && self.hash.contains_key(to);
     }
 
-    fn neighbors(&self, vertex: &Vertex) -> Vec<(Vertex, crate::storage::Edge)> {
+    fn neighbors(&self, vertex: &Vertex) -> Option<Vec<(Vertex, Edge)>> {
         todo!()
     }
 
-    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> bool {
-        todo!()
+    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool> {
+        let index = self.hash.remove(old_vertex);
+        if index.is_none() {
+            return Some(false);
+        } else {
+            self.hash.insert(new_vertex.clone(), index.unwrap());
+            return Some(true);
+        }
     }
 
     fn set_edge(
         &mut self,
-        from: &Vertex,
-        to: &Vertex,
+        _from: &Vertex,
+        _to: &Vertex,
         _old_edge: &crate::storage::Edge,
         _new_edge: &crate::storage::Edge,
-    ) -> bool {
-        todo!()
+    ) -> Option<bool> {
+        None
     }
 }
