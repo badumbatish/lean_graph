@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 
-use crate::storage::{FixedStorage, GraphStorage, Vertex};
+use crate::storage::{Edge, FixedStorage, GraphStorage, Vertex};
 
-pub struct AdjacencyMatrix {
+pub struct BinaryAdjMatrix {
     matrix: Vec<Vec<usize>>,
     hash: HashMap<Vertex, usize>,
     counter: usize,
     capacity: usize,
 }
 
-impl FixedStorage for AdjacencyMatrix {
+impl FixedStorage for BinaryAdjMatrix {
     fn new(size: u32) -> Self {
         let ma = vec![vec![0; size as usize]; size as usize];
 
-        AdjacencyMatrix {
+        BinaryAdjMatrix {
             matrix: ma,
             hash: HashMap::new(),
             counter: 0,
@@ -22,7 +22,7 @@ impl FixedStorage for AdjacencyMatrix {
     }
 }
 
-impl GraphStorage for AdjacencyMatrix {
+impl GraphStorage for BinaryAdjMatrix {
     fn edge_size(&self) -> u64 {
         todo!()
     }
@@ -31,27 +31,62 @@ impl GraphStorage for AdjacencyMatrix {
     }
 
     fn add_vertex(&mut self, vertex: &Vertex) -> bool {
-        todo!()
+        if self.hash.contains_key(vertex) {
+            return true;
+        } else if self.counter < self.capacity {
+            self.hash.insert(vertex.clone(), self.counter);
+            self.counter += 1;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     fn remove_vertex(&mut self, vertex: &Vertex) -> bool {
-        todo!()
+        if self.hash.contains_key(vertex) {
+            let index = self.hash.remove(vertex).unwrap();
+            for i in 0..self.capacity {
+                self.matrix[index][i] = 0;
+                self.matrix[i][index] = 0;
+            }
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &crate::storage::Edge) -> bool {
-        todo!()
+    fn add_edge(&mut self, from: &Vertex, to: &Vertex, _edge: &Edge) -> bool {
+        let (i, j) = (self.hash.get(from), self.hash.get(to));
+        if i.is_none() || j.is_none() {
+            return false;
+        } else {
+            let i = *i.unwrap();
+            let j = *j.unwrap();
+            self.matrix[i][j] = 1;
+            self.matrix[j][i] = 1;
+            return true;
+        }
     }
 
-    fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &crate::storage::Edge) -> bool {
-        todo!()
+    fn remove_edge(&mut self, from: &Vertex, to: &Vertex, _edge: &Edge) -> bool {
+        let (i, j) = (self.hash.get(from), self.hash.get(to));
+        if i.is_none() || j.is_none() {
+            return false;
+        } else {
+            let i = *i.unwrap();
+            let j = *j.unwrap();
+            self.matrix[i][j] = 0;
+            self.matrix[j][i] = 0;
+            return true;
+        }
     }
 
     fn has_vertex(&self, vertex: &Vertex) -> bool {
-        todo!()
+        return self.hash.contains_key(vertex);
     }
 
-    fn has_edge(&self, from: &Vertex, to: &Vertex, edge: &crate::storage::Edge) -> bool {
-        todo!()
+    fn has_edge(&self, from: &Vertex, to: &Vertex, _edge: &crate::storage::Edge) -> bool {
+        return self.hash.contains_key(from) && self.hash.contains_key(to);
     }
 
     fn neighbors(&self, vertex: &Vertex) -> Vec<(Vertex, crate::storage::Edge)> {
@@ -66,8 +101,8 @@ impl GraphStorage for AdjacencyMatrix {
         &mut self,
         from: &Vertex,
         to: &Vertex,
-        old_edge: &crate::storage::Edge,
-        new_edge: &crate::storage::Edge,
+        _old_edge: &crate::storage::Edge,
+        _new_edge: &crate::storage::Edge,
     ) -> bool {
         todo!()
     }

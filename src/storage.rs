@@ -15,10 +15,6 @@ impl PartialEq for Vertex {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
     }
-
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
-    }
 }
 
 impl Eq for Vertex {}

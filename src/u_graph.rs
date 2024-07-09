@@ -28,21 +28,15 @@ where
             fn has_vertex(&self, vertex: &Vertex) -> bool;
             fn has_edge(&self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
             fn neighbors(&self, vertex: &Vertex) -> Vec<(Vertex, Edge)>;
+            fn set_edge(
+                &mut self,
+                from: &Vertex,
+                to: &Vertex,
+                old_edge: &Edge,
+                new_edge: &Edge
+            ) -> bool ;
+            fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> bool;
         }
-    }
-
-    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> bool {
-        todo!()
-    }
-
-    fn set_edge(
-        &mut self,
-        from: &Vertex,
-        to: &Vertex,
-        old_edge: &crate::storage::Edge,
-        new_edge: &crate::storage::Edge,
-    ) -> bool {
-        todo!()
     }
 }
 
