@@ -11,11 +11,28 @@ impl<S> GraphStorage for UGraph<S>
 where
     S: GraphStorage,
 {
+    fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool> {
+        let a = self.storage.add_edge(from, to, edge);
+        let b = self.storage.add_edge(to, from, edge);
+
+        if let Some(a) = a {
+            if let Some(b) = b {
+                return Some(a && b);
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        }
+    }
+
+    fn edge_size(&self) -> u64 {
+        self.storage.edge_size() as u64 / 2
+    }
     delegate! {
         to self.storage {
             fn add_vertex(&mut self, vertex: &Vertex) -> Option<bool>;
             fn remove_vertex(&mut self, vertex: &Vertex) -> bool;
-            fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool>;
             fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool>;
             fn has_vertex(&self, vertex: &Vertex) -> bool;
             fn has_edge(&self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
@@ -29,9 +46,8 @@ where
             ) -> Option<bool>;
             fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool>;
 
-            fn edge_size(&self) -> u64 ;
+            fn vertex_size(&self) -> u64 ;
 
-            fn vertex_size(&self) -> u64;
 
         }
     }

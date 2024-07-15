@@ -49,6 +49,14 @@ pub trait FixedStorage {
     fn new(size: u32) -> Self;
 }
 pub trait GraphStorage {
+    /**
+    Returns the number of edges in the graph
+
+    This is direction-sensitive, so if there is an edge from A to B, and an edge from B to A, this function will return 2
+
+    For undirected graphs, this function should return GraphStorage.edge_size() / 2
+
+    */
     fn edge_size(&self) -> u64;
     fn vertex_size(&self) -> u64;
 
