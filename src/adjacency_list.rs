@@ -7,32 +7,34 @@ pub struct AdjacencyList {
 }
 
 impl GraphStorage for AdjacencyList {
-    fn add_vertex(&mut self, vertex: &Vertex) -> bool {
-        self.adj_list
-            .insert(vertex.clone(), HashSet::new())
-            .is_none()
+    fn add_vertex(&mut self, vertex: &Vertex) -> Option<bool> {
+        Some(
+            self.adj_list
+                .insert(vertex.clone(), HashSet::new())
+                .is_none(),
+        )
     }
 
     fn remove_vertex(&mut self, vertex: &Vertex) -> bool {
         self.adj_list.remove(vertex).is_some()
     }
 
-    fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool {
+    fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool> {
         if let Some(neighbors) = self.adj_list.get_mut(from) {
             let at = (to.clone(), edge.clone());
             neighbors.insert(at);
-            true
+            Some(true)
         } else {
-            false
+            Some(false)
         }
     }
 
-    fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool {
+    fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool> {
         if let Some(neighbors) = self.adj_list.get_mut(from) {
             let at = (to.clone(), edge.clone());
-            neighbors.remove(&at)
+            Some(neighbors.remove(&at))
         } else {
-            false
+            Some(false)
         }
     }
 

@@ -21,10 +21,10 @@ where
 
     delegate! {
         to self.storage {
-            fn add_vertex(&mut self, vertex: &Vertex) -> bool;
+            fn add_vertex(&mut self, vertex: &Vertex) -> Option<bool>;
             fn remove_vertex(&mut self, vertex: &Vertex) -> bool;
-            fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
-            fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
+            fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool>;
+            fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool>;
             fn has_vertex(&self, vertex: &Vertex) -> bool;
             fn has_edge(&self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
             fn neighbors(&self, vertex: &Vertex) -> Option<Vec<(Vertex, Edge)>>;

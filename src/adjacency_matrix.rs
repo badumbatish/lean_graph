@@ -30,15 +30,17 @@ impl GraphStorage for BinaryAdjMatrix {
         todo!()
     }
 
-    fn add_vertex(&mut self, vertex: &Vertex) -> bool {
+    fn add_vertex(&mut self, vertex: &Vertex) -> Option<bool> {
+        // If it contains the vertex, return false
         if self.hash.contains_key(vertex) {
-            return true;
+            return Some(false);
         } else if self.counter < self.capacity {
+            // If we still have space, insert and returns true
             self.hash.insert(vertex.clone(), self.counter);
             self.counter += 1;
-            return true;
+            return Some(true);
         } else {
-            return false;
+            return None;
         }
     }
 
@@ -55,29 +57,29 @@ impl GraphStorage for BinaryAdjMatrix {
         }
     }
 
-    fn add_edge(&mut self, from: &Vertex, to: &Vertex, _edge: &Edge) -> bool {
+    fn add_edge(&mut self, from: &Vertex, to: &Vertex, _edge: &Edge) -> Option<bool> {
         let (i, j) = (self.hash.get(from), self.hash.get(to));
         if i.is_none() || j.is_none() {
-            return false;
+            return Some(false);
         } else {
             let i = *i.unwrap();
             let j = *j.unwrap();
             self.matrix[i][j] = 1;
             self.matrix[j][i] = 1;
-            return true;
+            return Some(true);
         }
     }
 
-    fn remove_edge(&mut self, from: &Vertex, to: &Vertex, _edge: &Edge) -> bool {
+    fn remove_edge(&mut self, from: &Vertex, to: &Vertex, _edge: &Edge) -> Option<bool> {
         let (i, j) = (self.hash.get(from), self.hash.get(to));
         if i.is_none() || j.is_none() {
-            return false;
+            return Some(false);
         } else {
             let i = *i.unwrap();
             let j = *j.unwrap();
             self.matrix[i][j] = 0;
             self.matrix[j][i] = 0;
-            return true;
+            return Some(true);
         }
     }
 
