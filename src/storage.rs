@@ -52,39 +52,48 @@ pub trait GraphStorage {
     fn edge_size(&self) -> u64;
     fn vertex_size(&self) -> u64;
 
-    // If vertex is already in graph, returns false
-    // If vertex is not in graph and still has capacity, returns true
-    // If vertex is not in graph and has no capacity, returns None
-    // Please unwrap immediately after calling this function
+    /**
+        If vertex is already in graph, returns false.
+
+        If vertex is not in graph and still has capacity, returns true
+
+        If vertex is not in graph and has no capacity, returns None
+
+        Please unwrap immediately after calling this function
+    */
     fn add_vertex(&mut self, vertex: &Vertex) -> Option<bool>;
 
-    // If vertex is already in graph, changes and return true
-    // If vertex is not in graph, returns false
-    // Any operation that is unable to do the two things above returns None
+    /**
+        If vertex is already in graph, changes and return true
+
+        If vertex is not in graph, returns false
+
+        Any operation that is unable to do the two things above returns None
+    */
     fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool>;
 
-    // If vertex is in graph, removes and return true
-    // If vertex is not in graph, returns false
-    // Any operation that is unable to do the two things above returns None
+    /// If vertex is in graph, removes and return true
+    /// If vertex is not in graph, returns false
+    /// Any operation that is unable to do the two things above returns None
     fn remove_vertex(&mut self, vertex: &Vertex) -> bool;
 
-    // If edge is already in graph, returns false
-    // If edge is not in graph and still has capacity, returns true
-    // If edge is not in graph and has no capacity, returns None
+    /// If edge is already in graph, returns false
+    /// If edge is not in graph and still has capacity, returns true
+    /// If edge is not in graph and has no capacity, returns None
     fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool>;
 
-    // If edge is already in graph, remove and return true
-    // If edge is not in graph, returns false
-    // Any operation that is unable to do the two things above returns None
+    /// If edge is already in graph, remove and return true
+    /// If edge is not in graph, returns false
+    /// Any operation that is unable to do the two things above returns None
     fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool>;
 
-    // If vertex is in graph, returns true
-    // If vertex is not in graph, returns false
+    /// If vertex is in graph, returns true
+    /// If vertex is not in graph, returns false
     fn has_vertex(&self, vertex: &Vertex) -> bool;
 
-    // If edge is in graph, change edge and returns true
-    // If edge is not in graph, returns false
-    // Any operation that is unable to do the two things above returns None
+    /// If edge is in graph, change edge and returns true
+    /// If edge is not in graph, returns false
+    /// Any operation that is unable to do the two things above returns None
     fn set_edge(
         &mut self,
         from: &Vertex,

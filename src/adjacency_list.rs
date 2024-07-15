@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::storage::{Edge, GraphStorage, Vertex};
+use crate::storage::{DynamicStorage, Edge, GraphStorage, Vertex};
 
 pub struct AdjacencyList {
     adj_list: HashMap<Vertex, HashSet<(Vertex, Edge)>>,
@@ -65,11 +65,14 @@ impl GraphStorage for AdjacencyList {
     }
 
     fn vertex_size(&self) -> u64 {
-        todo!()
+        self.adj_list.len() as u64
     }
 
     fn edge_size(&self) -> u64 {
-        todo!()
+        self.adj_list
+            .values()
+            .map(|neighbors| neighbors.len())
+            .sum::<usize>() as u64
     }
 
     fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool> {
@@ -84,5 +87,27 @@ impl GraphStorage for AdjacencyList {
         new_edge: &crate::storage::Edge,
     ) -> Option<bool> {
         todo!()
+    }
+}
+
+impl DynamicStorage for AdjacencyList {
+    fn new() -> Self {
+        AdjacencyList {
+            adj_list: HashMap::new(),
+        }
+    }
+}
+#[cfg(test)]
+mod adj_list_test {
+    use crate::{
+        storage::DynamicStorage,
+        u_graph::{test_graph_initialization, UGraph},
+    };
+
+    use super::*;
+    #[test]
+    fn adj_list_init() {
+        let g = &mut UGraph::<AdjacencyList>::new();
+        test_graph_initialization(g)
     }
 }

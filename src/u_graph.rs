@@ -11,14 +11,6 @@ impl<S> GraphStorage for UGraph<S>
 where
     S: GraphStorage,
 {
-    fn edge_size(&self) -> u64 {
-        todo!()
-    }
-
-    fn vertex_size(&self) -> u64 {
-        todo!()
-    }
-
     delegate! {
         to self.storage {
             fn add_vertex(&mut self, vertex: &Vertex) -> Option<bool>;
@@ -36,6 +28,11 @@ where
                 new_edge: &Edge
             ) -> Option<bool>;
             fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool>;
+
+            fn edge_size(&self) -> u64 ;
+
+            fn vertex_size(&self) -> u64;
+
         }
     }
 }
@@ -61,12 +58,33 @@ where
 }
 #[cfg(test)]
 mod u_graph {
-    
 
-    
     #[test]
     fn test() {}
 }
 
-#[test]
-fn a() {}
+pub fn test_graph_initialization<S>(g: &mut UGraph<S>)
+where
+    S: GraphStorage,
+{
+    assert_eq!(g.vertex_size(), 0);
+    assert_eq!(g.edge_size(), 0);
+    let from = Vertex {
+        name: String::from("1"),
+        weight: 1.0,
+    };
+    g.add_vertex(&from);
+    assert_eq!(g.vertex_size(), 1);
+    assert_eq!(g.edge_size(), 0);
+    let to = Vertex {
+        name: String::from("2"),
+        weight: 1.0,
+    };
+    g.add_vertex(&to);
+
+    let edge = Edge {
+        weight: 1.0,
+        name: String::from("1"),
+    };
+    g.add_edge(&from, &to, &edge);
+}
