@@ -76,7 +76,35 @@ impl GraphStorage for AdjacencyList {
     }
 
     fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool> {
-        todo!()
+        let mut exists = false;
+
+        for neighbors in self.adj_list.values_mut() {
+            let mut to_remove = None;
+            let mut to_insert = None;
+
+            for (v, e) in neighbors.iter() {
+                if v == old_vertex {
+                    exists = true;
+                    to_remove = Some((v.clone(), e.clone()));
+                    to_insert = Some((new_vertex.clone(), e.clone()));
+                    break;
+                }
+            }
+
+            if let Some(remove_item) = to_remove {
+                neighbors.remove(&remove_item);
+            }
+
+            if let Some(insert_item) = to_insert {
+                neighbors.insert(insert_item);
+            }
+        }
+
+        if let Some(set) = self.adj_list.remove(old_vertex) {
+            self.adj_list.insert(new_vertex.clone(), set);
+            exists = true;
+        }
+        Some(exists)
     }
 
     fn set_edge(
@@ -86,7 +114,20 @@ impl GraphStorage for AdjacencyList {
         old_edge: &crate::storage::Edge,
         new_edge: &crate::storage::Edge,
     ) -> Option<bool> {
-        todo!()
+        let mut exists = false;
+
+        if self.adj_list.contains_key(from) && self.adj_list.contains_key(to) {
+            if let Some(neighbors) = self.adj_list.get_mut(from) {
+                let at = (to.clone(), old_edge.clone());
+                if neighbors.remove(&at) {
+                    let at = (to.clone(), new_edge.clone());
+                    neighbors.insert(at);
+                    exists = true;
+                }
+            }
+        }
+
+        Some(exists)
     }
 }
 
