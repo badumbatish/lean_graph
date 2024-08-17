@@ -137,4 +137,18 @@ impl<V, E> DynamicStorage for AdjacencyList<V, E> {
     }
 }
 #[cfg(test)]
-mod adj_list_test {}
+mod adj_list_test {
+    use crate::adjacency_list::AdjacencyList;
+    use crate::storage::{DynamicStorage, GraphStorage};
+    #[test]
+    fn test_new() {
+        let mut adj_list = AdjacencyList::new();
+        adj_list.add_vertex(&1);
+        adj_list.add_vertex(&2);
+        adj_list.add_edge(&1, &2, &3);
+
+        assert_eq!(adj_list.has_vertex(&1), true);
+        assert_eq!(adj_list.vertex_size(), 2);
+        assert_eq!(adj_list.edge_size(), 1);
+    }
+}
