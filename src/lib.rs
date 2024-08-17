@@ -1,9 +1,9 @@
 pub mod adjacency_list;
 pub mod adjacency_matrix;
 pub mod di_graph;
+pub mod iterators;
 pub mod storage;
 pub mod u_graph;
-
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }

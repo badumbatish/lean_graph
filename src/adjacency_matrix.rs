@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use crate::storage::{Edge, FixedStorage, GraphStorage, Vertex};
+use crate::storage::{FixedStorage, GraphStorage};
 
-pub struct BinaryAdjMatrix {
+pub struct BinaryAdjMatrix<V> {
     matrix: Vec<Vec<usize>>,
-    hash: HashMap<Vertex, usize>,
+    hash: HashMap<V, usize>,
     counter: usize,
     capacity: usize,
 }
 
-impl FixedStorage for BinaryAdjMatrix {
+impl<V> FixedStorage for BinaryAdjMatrix<V> {
     fn new(size: u32) -> Self {
         let ma = vec![vec![0; size as usize]; size as usize];
 
@@ -22,7 +22,10 @@ impl FixedStorage for BinaryAdjMatrix {
     }
 }
 
-impl GraphStorage for BinaryAdjMatrix {
+impl<V, E> GraphStorage<V, E> for BinaryAdjMatrix<V>
+where
+    V: Clone + Eq + std::hash::Hash,
+{
     fn edge_size(&self) -> u64 {
         todo!()
     }
@@ -30,7 +33,7 @@ impl GraphStorage for BinaryAdjMatrix {
         todo!()
     }
 
-    fn add_vertex(&mut self, vertex: &Vertex) -> Option<bool> {
+    fn add_vertex(&mut self, vertex: &V) -> Option<bool> {
         // If it contains the vertex, return false
         if self.hash.contains_key(vertex) {
             return Some(false);
@@ -44,7 +47,7 @@ impl GraphStorage for BinaryAdjMatrix {
         }
     }
 
-    fn remove_vertex(&mut self, vertex: &Vertex) -> bool {
+    fn remove_vertex(&mut self, vertex: &V) -> bool {
         if self.hash.contains_key(vertex) {
             let index = self.hash.remove(vertex).unwrap();
             for i in 0..self.capacity {
@@ -57,7 +60,7 @@ impl GraphStorage for BinaryAdjMatrix {
         }
     }
 
-    fn add_edge(&mut self, from: &Vertex, to: &Vertex, _edge: &Edge) -> Option<bool> {
+    fn add_edge(&mut self, from: &V, to: &V, _edge: &E) -> Option<bool> {
         let (i, j) = (self.hash.get(from), self.hash.get(to));
         if i.is_none() || j.is_none() {
             return Some(false);
@@ -70,7 +73,7 @@ impl GraphStorage for BinaryAdjMatrix {
         }
     }
 
-    fn remove_edge(&mut self, from: &Vertex, to: &Vertex, _edge: &Edge) -> Option<bool> {
+    fn remove_edge(&mut self, from: &V, to: &V, _edge: &E) -> Option<bool> {
         let (i, j) = (self.hash.get(from), self.hash.get(to));
         if i.is_none() || j.is_none() {
             return Some(false);
@@ -83,19 +86,19 @@ impl GraphStorage for BinaryAdjMatrix {
         }
     }
 
-    fn has_vertex(&self, vertex: &Vertex) -> bool {
+    fn has_vertex(&self, vertex: &V) -> bool {
         return self.hash.contains_key(vertex);
     }
 
-    fn has_edge(&self, from: &Vertex, to: &Vertex, _edge: &crate::storage::Edge) -> bool {
+    fn has_edge(&self, from: &V, to: &V, _edge: &E) -> bool {
         return self.hash.contains_key(from) && self.hash.contains_key(to);
     }
 
-    fn neighbors(&self, vertex: &Vertex) -> Option<Vec<(Vertex, Edge)>> {
+    fn neighbors(&self, vertex: &V) -> Option<Vec<(V, E)>> {
         todo!()
     }
 
-    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool> {
+    fn set_vertex(&mut self, old_vertex: &V, new_vertex: &V) -> Option<bool> {
         let index = self.hash.remove(old_vertex);
         if index.is_none() {
             return Some(false);
@@ -105,13 +108,7 @@ impl GraphStorage for BinaryAdjMatrix {
         }
     }
 
-    fn set_edge(
-        &mut self,
-        _from: &Vertex,
-        _to: &Vertex,
-        _old_edge: &crate::storage::Edge,
-        _new_edge: &crate::storage::Edge,
-    ) -> Option<bool> {
+    fn set_edge(&mut self, _from: &V, _to: &V, _old_edge: &E, _new_edge: &E) -> Option<bool> {
         None
     }
 }

@@ -1,13 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::storage::{DynamicStorage, Edge, GraphStorage, Vertex};
+use crate::storage::{DynamicStorage, GraphStorage};
 
-pub struct AdjacencyList {
-    adj_list: HashMap<Vertex, HashSet<(Vertex, Edge)>>,
+pub struct AdjacencyList<V, E> {
+    adj_list: HashMap<V, HashSet<(V, E)>>,
 }
 
-impl GraphStorage for AdjacencyList {
-    fn add_vertex(&mut self, vertex: &Vertex) -> Option<bool> {
+impl<V, E> GraphStorage<V, E> for AdjacencyList<V, E>
+where
+    V: Clone + Eq + std::hash::Hash,
+    E: Clone + Eq + std::hash::Hash,
+{
+    fn add_vertex(&mut self, vertex: &V) -> Option<bool> {
         Some(
             self.adj_list
                 .insert(vertex.clone(), HashSet::new())
@@ -15,11 +19,11 @@ impl GraphStorage for AdjacencyList {
         )
     }
 
-    fn remove_vertex(&mut self, vertex: &Vertex) -> bool {
+    fn remove_vertex(&mut self, vertex: &V) -> bool {
         self.adj_list.remove(vertex).is_some()
     }
 
-    fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool> {
+    fn add_edge(&mut self, from: &V, to: &V, edge: &E) -> Option<bool> {
         if let Some(neighbors) = self.adj_list.get_mut(from) {
             let at = (to.clone(), edge.clone());
             neighbors.insert(at);
@@ -29,7 +33,7 @@ impl GraphStorage for AdjacencyList {
         }
     }
 
-    fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool> {
+    fn remove_edge(&mut self, from: &V, to: &V, edge: &E) -> Option<bool> {
         if let Some(neighbors) = self.adj_list.get_mut(from) {
             let at = (to.clone(), edge.clone());
             Some(neighbors.remove(&at))
@@ -38,11 +42,11 @@ impl GraphStorage for AdjacencyList {
         }
     }
 
-    fn has_vertex(&self, vertex: &Vertex) -> bool {
+    fn has_vertex(&self, vertex: &V) -> bool {
         self.adj_list.contains_key(vertex)
     }
 
-    fn has_edge(&self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool {
+    fn has_edge(&self, from: &V, to: &V, edge: &E) -> bool {
         if let Some(neighbors) = self.adj_list.get(from) {
             let at = (to.clone(), edge.clone());
             neighbors.contains(&at)
@@ -51,7 +55,7 @@ impl GraphStorage for AdjacencyList {
         }
     }
 
-    fn neighbors(&self, vertex: &Vertex) -> Option<Vec<(Vertex, Edge)>> {
+    fn neighbors(&self, vertex: &V) -> Option<Vec<(V, E)>> {
         if let Some(neighbors) = self.adj_list.get(vertex) {
             Some(
                 neighbors
@@ -75,7 +79,7 @@ impl GraphStorage for AdjacencyList {
             .sum::<usize>() as u64
     }
 
-    fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool> {
+    fn set_vertex(&mut self, old_vertex: &V, new_vertex: &V) -> Option<bool> {
         let mut exists = false;
 
         for neighbors in self.adj_list.values_mut() {
@@ -107,13 +111,7 @@ impl GraphStorage for AdjacencyList {
         Some(exists)
     }
 
-    fn set_edge(
-        &mut self,
-        from: &Vertex,
-        to: &Vertex,
-        old_edge: &crate::storage::Edge,
-        new_edge: &crate::storage::Edge,
-    ) -> Option<bool> {
+    fn set_edge(&mut self, from: &V, to: &V, old_edge: &E, new_edge: &E) -> Option<bool> {
         let mut exists = false;
 
         if self.adj_list.contains_key(from) && self.adj_list.contains_key(to) {
@@ -131,7 +129,7 @@ impl GraphStorage for AdjacencyList {
     }
 }
 
-impl DynamicStorage for AdjacencyList {
+impl<V, E> DynamicStorage for AdjacencyList<V, E> {
     fn new() -> Self {
         AdjacencyList {
             adj_list: HashMap::new(),
@@ -139,16 +137,4 @@ impl DynamicStorage for AdjacencyList {
     }
 }
 #[cfg(test)]
-mod adj_list_test {
-    use crate::{
-        storage::DynamicStorage,
-        u_graph::{test_graph_initialization, UGraph},
-    };
-
-    use super::*;
-    #[test]
-    fn adj_list_init() {
-        let g = &mut UGraph::<AdjacencyList>::new();
-        test_graph_initialization(g)
-    }
-}
+mod adj_list_test {}

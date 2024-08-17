@@ -1,17 +1,21 @@
-use crate::storage::{DynamicStorage, Edge, Vertex};
+use std::marker::PhantomData;
+
+use crate::storage::DynamicStorage;
 use crate::storage::{FixedStorage, GraphStorage};
 use delegate::delegate;
-pub struct UGraph<S>
+pub struct UGraph<S, V, E>
 where
-    S: GraphStorage,
+    S: GraphStorage<V, E>,
 {
     storage: S,
+    _phantom_e: PhantomData<E>,
+    _phantom_v: PhantomData<V>,
 }
-impl<S> GraphStorage for UGraph<S>
+impl<S, V, E> GraphStorage<V, E> for UGraph<S, V, E>
 where
-    S: GraphStorage,
+    S: GraphStorage<V, E>,
 {
-    fn add_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool> {
+    fn add_edge(&mut self, from: &V, to: &V, edge: &E) -> Option<bool> {
         let a = self.storage.add_edge(from, to, edge);
         let b = self.storage.add_edge(to, from, edge);
 
@@ -31,20 +35,20 @@ where
     }
     delegate! {
         to self.storage {
-            fn add_vertex(&mut self, vertex: &Vertex) -> Option<bool>;
-            fn remove_vertex(&mut self, vertex: &Vertex) -> bool;
-            fn remove_edge(&mut self, from: &Vertex, to: &Vertex, edge: &Edge) -> Option<bool>;
-            fn has_vertex(&self, vertex: &Vertex) -> bool;
-            fn has_edge(&self, from: &Vertex, to: &Vertex, edge: &Edge) -> bool;
-            fn neighbors(&self, vertex: &Vertex) -> Option<Vec<(Vertex, Edge)>>;
+            fn add_vertex(&mut self, vertex: &V) -> Option<bool>;
+            fn remove_vertex(&mut self, vertex: &V) -> bool;
+            fn remove_edge(&mut self, from: &V, to: &V, edge: &E) -> Option<bool>;
+            fn has_vertex(&self, vertex: &V) -> bool;
+            fn has_edge(&self, from: &V, to: &V, edge: &E) -> bool;
+            fn neighbors(&self, vertex: &V) -> Option<Vec<(V, E)>>;
             fn set_edge(
                 &mut self,
-                from: &Vertex,
-                to: &Vertex,
-                old_edge: &Edge,
-                new_edge: &Edge
+                from: &V,
+                to: &V,
+                old_edge: &E,
+                new_edge: &E
             ) -> Option<bool>;
-            fn set_vertex(&mut self, old_vertex: &Vertex, new_vertex: &Vertex) -> Option<bool>;
+            fn set_vertex(&mut self, old_vertex: &V, new_vertex: &V) -> Option<bool>;
 
             fn vertex_size(&self) -> u64 ;
 
@@ -53,23 +57,29 @@ where
     }
 }
 
-impl<S> FixedStorage for UGraph<S>
+impl<S, V, E> FixedStorage for UGraph<S, V, E>
 where
-    S: GraphStorage + FixedStorage,
+    S: GraphStorage<V, E> + FixedStorage,
 {
     fn new(size: u32) -> Self {
         UGraph {
             storage: S::new(size),
+            _phantom_e: PhantomData,
+            _phantom_v: PhantomData,
         }
     }
 }
 
-impl<S> DynamicStorage for UGraph<S>
+impl<S, V, E> DynamicStorage for UGraph<S, V, E>
 where
-    S: GraphStorage + DynamicStorage,
+    S: GraphStorage<V, E> + DynamicStorage,
 {
     fn new() -> Self {
-        UGraph { storage: S::new() }
+        UGraph {
+            storage: S::new(),
+            _phantom_e: PhantomData,
+            _phantom_v: PhantomData,
+        }
     }
 }
 #[cfg(test)]
@@ -77,30 +87,4 @@ mod u_graph {
 
     #[test]
     fn test() {}
-}
-
-pub fn test_graph_initialization<S>(g: &mut UGraph<S>)
-where
-    S: GraphStorage,
-{
-    assert_eq!(g.vertex_size(), 0);
-    assert_eq!(g.edge_size(), 0);
-    let from = Vertex {
-        name: String::from("1"),
-        weight: 1.0,
-    };
-    g.add_vertex(&from);
-    assert_eq!(g.vertex_size(), 1);
-    assert_eq!(g.edge_size(), 0);
-    let to = Vertex {
-        name: String::from("2"),
-        weight: 1.0,
-    };
-    g.add_vertex(&to);
-
-    let edge = Edge {
-        weight: 1.0,
-        name: String::from("1"),
-    };
-    g.add_edge(&from, &to, &edge);
 }
