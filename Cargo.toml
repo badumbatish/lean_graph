@@ -1,7 +1,0 @@
-[package]
-name = "lean_graph"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-delegate = "0.12.0"
