@@ -2,10 +2,16 @@
 #include <__expected/unexpected.h>
 #include <algorithm>
 #include <expected>
+#include <functional>
 #include <map>
+#include <optional>
+#include <queue>
 #include <set>
+#include <stack>
+#include <tuple>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 
 enum class node_error { not_exist, duplicate, general_error };
 enum class edge_error { not_exist, duplicate, general_error };
@@ -29,46 +35,48 @@ public:
 };
 
 /// INFO: A BasicGraph is just a DiGraph
-template <class Node, class Cost>
+template <class CounterType, class Cost>
   requires std::is_arithmetic_v<Cost>
 class BasicGraph {
 public:
-  //  INFO: Edges type
+  //  INFO: Edges type used internally and the user uses to interface with the
+  //  graph
   using CounterEdge = std::tuple<CounterType, CounterType, Cost>;
+  using CounterBlankEdge = std::tuple<CounterType, CounterType>;
   using CounterHalfEdge = std::tuple<CounterType, Cost>;
-  using Edge = std::tuple<Node, Node, Cost>;
-  using BlankEdge = std::tuple<Node, Node>;
-  using HalfEdge = std::tuple<Node, Cost>;
+
+  // INFO: Edge that the user use to register an edge
+  using Edge = std::tuple<CounterType, CounterType, Cost>;
+  using HalfEdge = std::tuple<CounterType, Cost>;
+
   //  INFO: Results
   using NodeResult = std::expected<CounterType, node_error>;
   using EdgeResult = std::expected<CounterEdge, node_error>;
 
 private:
+  enum VisitOrder { pre, post };
   std::map<CounterType, std::set<CounterHalfEdge>> graph;
-  Counter<Node> node_counter;
+  Counter<CounterType> node_counter;
 
-  auto NodeToCounter(Node node) -> NodeResult {
+  auto NodeToCounter(CounterType node) -> NodeResult {
     if (!node_counter.exist(node))
       return std::unexpected<node_error>(node_error::not_exist);
     return node_counter.get_counter(node);
   }
 
 public:
-  auto registerNode(Node node) -> CounterType {
+  auto registerNode(CounterType node) -> CounterType {
     return node_counter.get_counter(node);
   }
 
-  auto registerEdge(Edge edge) -> CounterEdge {
-    auto [from, to, cost] = edge;
-    CounterEdge result = {node_counter.get_counter(from),
-                          node_counter.get_counter(to), cost};
-
-    graph[std::get<0>(result)].insert({std::get<1>(result), cost});
-    return result;
+  auto registerEdge(CounterEdge edge) -> CounterEdge {
+    const auto &[from, to, cost] = edge;
+    graph[from].insert({to, cost});
+    return edge;
   }
 
   auto existEdge(CounterEdge edge) -> bool {
-    auto [from, to, cost] = edge;
+    auto &[from, to, cost] = edge;
     if (!existNode(from))
       return false;
     auto s = graph.find(from);
@@ -77,8 +85,8 @@ public:
 
     return (*s).contains({to, cost});
   }
-  auto existBlankEdge(BlankEdge edge) -> bool {
-    auto [from, to] = edge;
+  auto existBlankEdge(CounterBlankEdge edge) -> bool {
+    auto &[from, to] = edge;
     if (!existNode(from))
       return false;
     auto s = graph.find(from);
@@ -92,6 +100,72 @@ public:
   }
   auto existNode(CounterType node) -> bool {
     return node_counter.counter_exceeds(node);
+  }
+  /// INFO: Performs dfs with 2 callables of pre, and post order
+  auto dfs(CounterType from, std::function<bool(CounterType)> pre,
+           std::function<bool(CounterType)> post) -> std::optional<node_error> {
+    using tup = std::tuple<CounterType, VisitOrder>;
+    std::stack<tup> stck;
+    std::unordered_set<CounterType> visited;
+    if (!existNode(from))
+      return node_error::not_exist;
+
+    stck.push(tup(from, VisitOrder::pre));
+    while (!stck.empty()) {
+      auto [current_node, visit_order] = stck.top();
+      stck.pop();
+      visited.insert(current_node);
+
+      if (visit_order == VisitOrder::pre) {
+        if (pre && !pre(current_node))
+          return std::nullopt;
+
+        stck.push(tup(current_node, VisitOrder::post));
+        for (auto &[neighbor, cost] : graph[current_node]) {
+          if (visited.contains(neighbor))
+            continue;
+          stck.push(tup(neighbor, VisitOrder::pre));
+        }
+      } else {
+        if (post && !post(current_node))
+          return std::nullopt;
+      }
+    }
+
+    return std::nullopt;
+  }
+  /// INFO: Performs dfs with 2 callables of pre, and post order
+  auto bfs(CounterType from, std::function<bool(CounterType)> pre,
+           std::function<bool(CounterType)> post) -> std::optional<node_error> {
+    using tup = std::tuple<CounterType, VisitOrder>;
+    std::queue<tup> q;
+    std::unordered_set<CounterType> visited;
+    if (!existNode(from))
+      return node_error::not_exist;
+
+    q.push(tup(from, VisitOrder::pre));
+    while (!q.empty()) {
+      auto [current_node, visit_order] = q.front();
+      q.pop();
+      visited.insert(current_node);
+
+      if (visit_order == VisitOrder::pre) {
+        if (pre && !pre(current_node))
+          return std::nullopt;
+
+        q.push(tup(current_node, VisitOrder::post));
+        for (auto &[neighbor, cost] : graph[current_node]) {
+          if (visited.contains(neighbor))
+            continue;
+          q.push(tup(neighbor, VisitOrder::pre));
+        }
+      } else {
+        if (post && !post(current_node))
+          return std::nullopt;
+      }
+    }
+
+    return std::nullopt;
   }
 };
 
