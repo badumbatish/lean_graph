@@ -24,14 +24,16 @@ template <class Aspect> class Counter {
 
 public:
   Counter(CounterType start_from = 0) : count(start_from) {}
-  bool exist(Aspect aspect) { return counter.find(aspect) != counter.end(); }
+  bool exist(Aspect aspect) const {
+    return counter.find(aspect) != counter.end();
+  }
   CounterType get_counter(Aspect aspect) {
     if (!exist(aspect))
       counter[aspect] = count++;
     return counter[aspect];
   }
 
-  bool counter_exceeds(CounterType ceiling) { return count > ceiling; }
+  bool counter_exceeds(CounterType ceiling) const { return count > ceiling; }
 };
 
 /// INFO: A BasicGraph is just a DiGraph
@@ -75,7 +77,7 @@ public:
     return edge;
   }
 
-  auto existEdge(CounterEdge edge) -> bool {
+  auto existEdge(CounterEdge edge) const -> bool {
     auto &[from, to, cost] = edge;
     if (!existNode(from))
       return false;
@@ -85,7 +87,7 @@ public:
 
     return (*s).contains({to, cost});
   }
-  auto existBlankEdge(CounterBlankEdge edge) -> bool {
+  auto existBlankEdge(CounterBlankEdge edge) const -> bool {
     auto &[from, to] = edge;
     if (!existNode(from))
       return false;
@@ -98,12 +100,14 @@ public:
              return to == std::get<0>(p);
            }) != st.end();
   }
-  auto existNode(CounterType node) -> bool {
-    return node_counter.counter_exceeds(node);
+  auto existNode(CounterType node) const -> bool {
+    return node_counter.exist(node);
   }
+
   /// INFO: Performs dfs with 2 callables of pre, and post order
   auto dfs(CounterType from, std::function<bool(CounterType)> pre,
-           std::function<bool(CounterType)> post) -> std::optional<node_error> {
+           std::function<bool(CounterType)> post) const
+      -> std::optional<node_error> {
     using tup = std::tuple<CounterType, VisitOrder>;
     std::stack<tup> stck;
     std::unordered_set<CounterType> visited;
@@ -121,7 +125,10 @@ public:
           return std::nullopt;
 
         stck.push(tup(current_node, VisitOrder::post));
-        for (auto &[neighbor, cost] : graph[current_node]) {
+        auto neighbors = graph.find(current_node);
+        if (neighbors == graph.end())
+          continue;
+        for (auto &[neighbor, cost] : (*neighbors).second) {
           if (visited.contains(neighbor))
             continue;
           stck.push(tup(neighbor, VisitOrder::pre));
@@ -136,14 +143,18 @@ public:
   }
   /// INFO: Performs dfs with 2 callables of pre, and post order
   auto bfs(CounterType from, std::function<bool(CounterType)> pre,
-           std::function<bool(CounterType)> post) -> std::optional<node_error> {
+           std::function<bool(CounterType)> post) const
+      -> std::optional<node_error> {
     using tup = std::tuple<CounterType, VisitOrder>;
     std::queue<tup> q;
     std::unordered_set<CounterType> visited;
+
+    // NOTE: Check if the node actually exists
     if (!existNode(from))
       return node_error::not_exist;
 
     q.push(tup(from, VisitOrder::pre));
+
     while (!q.empty()) {
       auto [current_node, visit_order] = q.front();
       q.pop();
@@ -154,7 +165,10 @@ public:
           return std::nullopt;
 
         q.push(tup(current_node, VisitOrder::post));
-        for (auto &[neighbor, cost] : graph[current_node]) {
+        auto neighbors = graph.find(current_node);
+        if (neighbors == graph.end())
+          continue;
+        for (auto &[neighbor, cost] : (*neighbors).second) {
           if (visited.contains(neighbor))
             continue;
           q.push(tup(neighbor, VisitOrder::pre));
@@ -167,6 +181,30 @@ public:
 
     return std::nullopt;
   }
+
+  // A topological sort is a reversed post order
+  auto topo_sort() -> std::vector<CounterType> const {
+    std::vector<CounterType> result;
+    auto vec_push = [&](auto node) {
+      result.push_back(node);
+      return true;
+    };
+
+    auto from = graph.begin();
+    if (from == graph.end())
+      return {};
+
+    auto dfs_result = dfs((*graph.begin()).first, nullptr, vec_push);
+    std::ranges::reverse(result);
+    if (dfs_result == std::nullopt)
+      return result;
+    return {};
+  }
+
+  /// INFO: Single source, single path dijkstra algorithm
+  /// User discretion required, user might input negative cost.
+  auto djikstra(CounterType from, CounterType to) const
+      -> std::vector<CounterType>;
 };
 
 /*template <class T, class C> class UGraph : public BasicGraph<T, C> {};*/
