@@ -60,7 +60,6 @@ protected:
   enum VisitOrder { pre, post };
   std::map<CounterType, std::set<CounterHalfEdge>> graph;
   Counter<CounterType> node_counter;
-  CounterType node_size = 0, edge_size = 0;
   auto NodeToCounter(CounterType node) -> NodeResult {
     if (!node_counter.exist(node))
       return std::unexpected<node_error>(node_error::not_exist);
@@ -68,15 +67,9 @@ protected:
   }
 
 public:
-  auto getDynamicSize() -> std::size_t {
-    return sizeof(CounterType) * node_size +
-           sizeof(CounterHalfEdge) * edge_size;
-  }
   auto registerNode(CounterType node) -> CounterType {
     if (existNode(node))
       return node_counter.get_counter(node);
-
-    node_size++;
 
     return node_counter.get_counter(node);
   }
@@ -85,7 +78,6 @@ public:
     if (existEdge(edge))
       return edge;
 
-    edge_size++;
     const auto &[from, to, cost] = edge;
     this->graph[from].insert({to, cost});
     return edge;
@@ -102,7 +94,9 @@ public:
     return (*s).second.contains({to, cost});
   }
   auto existBlankEdge(CounterBlankEdge edge) const -> bool {
-    auto &[from, to] = edge;
+    /// NOTE: To bypass unused var warning in structured bindings
+    auto from = std::get<0>(edge), to = std::get<1>(edge);
+    /*auto [from, to] = edge;*/
     if (!existNode(from))
       return false;
     auto s = this->graph.find(from);
@@ -110,7 +104,7 @@ public:
       return false;
 
     auto st = (*s).second;
-    return std::find_if(st.begin(), st.end(), [to](const auto &p) {
+    return std::find_if(st.begin(), st.end(), [=](const auto &p) {
              return to == std::get<0>(p);
            }) != st.end();
   }
@@ -227,8 +221,9 @@ public:
       return result;
     return {};
   }
-}
+};
 
-;
+/*template class DiGraph<uint32_t, uint32_t>;*/
+/*template class DiGraph<float_t>;*/
 /*template <class T, class C> class UGraph : public BasicGraph<T, C> {};*/
 /*template <class T, class C> class DiGraph : public BasicGraph<T, C> {};*/

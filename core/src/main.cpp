@@ -33,8 +33,6 @@ template <class C, class T> void make_graph() {
   graph.dfs(a, print_node, nullptr);
   std::cout << "Printing bfs\n";
   graph.bfs(a, print_node, nullptr);
-
-  std::cout << "Size of graph : " << graph.getDynamicSize() << std::endl;
 }
 int main() {
 
