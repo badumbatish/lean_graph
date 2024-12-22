@@ -198,6 +198,9 @@ public:
   /// User discretion required, user might input negative cost.
   auto djikstra(CounterType from, CounterType to) const
       -> std::vector<CounterType>;
+
+  /// INFO: Strongly connected components (SCC)
+  auto scc() -> std::vector<DiGraph>;
 };
 
 /// INFO: A DAG is a Directed Acyclic Graph that can be multi-edges, with
