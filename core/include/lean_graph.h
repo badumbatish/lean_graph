@@ -108,6 +108,10 @@ public:
              return to == std::get<0>(p);
            }) != st.end();
   }
+  auto existBlankEdge(CounterEdge edge) const -> bool {
+    auto [from, to, cost] = edge;
+    return existBlankEdge({from, to});
+  }
   auto existNode(CounterType node) const -> bool {
     return node_counter.exist(node);
   }

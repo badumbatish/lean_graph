@@ -19,7 +19,7 @@ template <class C, class T> void make_graph() {
   auto cf = graph.registerEdge({c, f, 0});
   auto cg = graph.registerEdge({c, g, 0});
 
-  if (graph.existBlankEdge({a, b})) {
+  if (graph.existBlankEdge(ab)) {
     std::cout << "True" << std::endl;
   } else {
     std::cout << "False" << std::endl;
