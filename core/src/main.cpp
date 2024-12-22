@@ -1,9 +1,9 @@
 #include "lean_graph.h"
+#include <cstdint>
 #include <iostream>
+template <class C, class T> void make_graph() {
 
-int main() {
-
-  BasicGraph<uint32_t, uint32_t> graph;
+  DiGraph<C, T> graph;
   auto a = graph.registerNode(0);
   auto b = graph.registerNode(1);
   auto c = graph.registerNode(2);
@@ -33,5 +33,13 @@ int main() {
   graph.dfs(a, print_node, nullptr);
   std::cout << "Printing bfs\n";
   graph.bfs(a, print_node, nullptr);
+
+  std::cout << "Size of graph : " << graph.getDynamicSize() << std::endl;
+}
+int main() {
+
+  make_graph<uint32_t, uint32_t>();
+  make_graph<uint16_t, uint16_t>();
+
   return 0;
 }

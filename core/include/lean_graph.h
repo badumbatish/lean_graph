@@ -36,10 +36,11 @@ public:
   bool counter_exceeds(CounterType ceiling) const { return count > ceiling; }
 };
 
-/// INFO: A BasicGraph is just a DiGraph
-template <class CounterType, class Cost>
+/// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
+/// being different.
+template <class Cost, class CounterType = std::uint16_t>
   requires std::is_arithmetic_v<Cost>
-class BasicGraph {
+class DiGraph {
 public:
   //  INFO: Edges type used internally and the user uses to interface with the
   //  graph
@@ -55,11 +56,11 @@ public:
   using NodeResult = std::expected<CounterType, node_error>;
   using EdgeResult = std::expected<CounterEdge, node_error>;
 
-private:
+protected:
   enum VisitOrder { pre, post };
   std::map<CounterType, std::set<CounterHalfEdge>> graph;
   Counter<CounterType> node_counter;
-
+  CounterType node_size = 0, edge_size = 0;
   auto NodeToCounter(CounterType node) -> NodeResult {
     if (!node_counter.exist(node))
       return std::unexpected<node_error>(node_error::not_exist);
@@ -67,13 +68,26 @@ private:
   }
 
 public:
+  auto getDynamicSize() -> std::size_t {
+    return sizeof(CounterType) * node_size +
+           sizeof(CounterHalfEdge) * edge_size;
+  }
   auto registerNode(CounterType node) -> CounterType {
+    if (existNode(node))
+      return node_counter.get_counter(node);
+
+    node_size++;
+
     return node_counter.get_counter(node);
   }
 
   auto registerEdge(CounterEdge edge) -> CounterEdge {
+    if (existEdge(edge))
+      return edge;
+
+    edge_size++;
     const auto &[from, to, cost] = edge;
-    graph[from].insert({to, cost});
+    this->graph[from].insert({to, cost});
     return edge;
   }
 
@@ -81,18 +95,18 @@ public:
     auto &[from, to, cost] = edge;
     if (!existNode(from))
       return false;
-    auto s = graph.find(from);
-    if (s == graph.end())
+    auto s = this->graph.find(from);
+    if (s == this->graph.end())
       return false;
 
-    return (*s).contains({to, cost});
+    return (*s).second.contains({to, cost});
   }
   auto existBlankEdge(CounterBlankEdge edge) const -> bool {
     auto &[from, to] = edge;
     if (!existNode(from))
       return false;
-    auto s = graph.find(from);
-    if (s == graph.end())
+    auto s = this->graph.find(from);
+    if (s == this->graph.end())
       return false;
 
     auto st = (*s).second;
@@ -182,30 +196,39 @@ public:
     return std::nullopt;
   }
 
-  // A topological sort is a reversed post order
-  auto topo_sort() -> std::vector<CounterType> const {
-    std::vector<CounterType> result;
-    auto vec_push = [&](auto node) {
-      result.push_back(node);
-      return true;
-    };
-
-    auto from = graph.begin();
-    if (from == graph.end())
-      return {};
-
-    auto dfs_result = dfs((*graph.begin()).first, nullptr, vec_push);
-    std::ranges::reverse(result);
-    if (dfs_result == std::nullopt)
-      return result;
-    return {};
-  }
-
   /// INFO: Single source, single path dijkstra algorithm
   /// User discretion required, user might input negative cost.
   auto djikstra(CounterType from, CounterType to) const
       -> std::vector<CounterType>;
 };
 
+/// INFO: A DAG is a Directed Acyclic Graph that can be multi-edges, with
+/// edge-cost being different.
+template <class Cost, class CounterType = std::uint16_t>
+  requires std::is_arithmetic_v<Cost>
+class DAG : public DiGraph<Cost, CounterType> {
+public:
+  // A topological sort is a reversed post order
+  auto topo_sort() -> std::vector<CounterType> const {
+
+    std::vector<CounterType> result;
+    auto vec_push = [&](auto node) {
+      result.push_back(node);
+      return true;
+    };
+
+    auto from = this->graph.begin();
+    if (from == this->graph.end())
+      return {};
+
+    auto dfs_result = dfs((*this->graph.begin()).first, nullptr, vec_push);
+    std::ranges::reverse(result);
+    if (dfs_result == std::nullopt)
+      return result;
+    return {};
+  }
+}
+
+;
 /*template <class T, class C> class UGraph : public BasicGraph<T, C> {};*/
 /*template <class T, class C> class DiGraph : public BasicGraph<T, C> {};*/
