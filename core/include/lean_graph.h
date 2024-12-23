@@ -40,6 +40,7 @@ public:
   bool exist(Aspect aspect) const {
     return counter.find(aspect) != counter.end();
   }
+  bool counter_exceeds(CounterType aspect) const { return count > aspect; }
   CounterType get_counter(Aspect aspect) {
     if (!exist(aspect))
       counter[aspect] = count++;
@@ -83,7 +84,7 @@ protected:
     std::unordered_set<CounterType> &visited =
         pre_visited.has_value() ? pre_visited->get() : local_visited;
     std::vector<CounterType> result;
-    if (!existNode(from))
+    if (!existCounterNode(from))
       return {};
 
     stck.push(tup(from, VisitOrder::pre));
@@ -179,7 +180,7 @@ public:
 
   auto existEdge(CounterEdge edge) const -> bool {
     auto &[from, to, cost] = edge;
-    if (!existNode(from))
+    if (!existCounterNode(from))
       return false;
     auto s = this->graph.find(from);
     if (s == this->graph.end())
@@ -191,7 +192,7 @@ public:
     /// NOTE: To bypass unused var warning in structured bindings
     auto from = std::get<0>(edge), to = std::get<1>(edge);
     /*auto [from, to] = edge;*/
-    if (!existNode(from))
+    if (!existCounterNode(from))
       return false;
     auto s = this->graph.find(from);
     if (s == this->graph.end())
@@ -206,8 +207,11 @@ public:
     auto [from, to, cost] = edge;
     return existBlankEdge({from, to});
   }
-  auto existNode(CounterType node) const -> bool {
+  auto existNode(NodeType node) const -> bool {
     return node_counter.exist(node);
+  }
+  auto existCounterNode(CounterType node) const -> bool {
+    return node_counter.counter_exceeds(node);
   }
 
   /// INFO: Performs full dfs of all nodes connected to a node
@@ -256,46 +260,47 @@ public:
   ///
   /// Successful djikstra will contain at least a vector of two nodes.
   /// If you're not a nerd, please be careful
-  auto djikstra(CounterType from, CounterType to,
+  auto djikstra(CounterType start, CounterType end,
                 auto compare = std::greater<>())
       -> std::tuple<Cost, std::vector<CounterType>> {
-    if (!existNode(from) || !existNode(to))
+    if (!existNode(start) || !existNode(end))
       return {0, {}};
-    std::unordered_map<CounterType, Cost> dist;
+    std::unordered_map<CounterType, Cost> dist_from_start;
     std::unordered_map<CounterType, CounterType> prev;
-    dist[from] = 0;
+    dist_from_start[start] = 0;
     std::priority_queue<std::tuple<Cost, CounterType>,
                         std::vector<std::tuple<Cost, CounterType>>,
                         decltype(compare)>
         pq(compare);
 
-    pq.emplace(dist[from], from);
+    pq.emplace(dist_from_start[start], start);
     while (!pq.empty()) {
       auto [dist_node, node] = pq.top();
       pq.pop();
 
-      for (auto [neighbor, cost] : graph[dist_node]) {
-        if (!dist.contains(neighbor) or (dist[neighbor] > dist[node] + cost)) {
-          dist[neighbor] = dist[node] + cost;
+      for (auto [neighbor, cost] : graph[node]) {
+        if (!dist_from_start.contains(neighbor) or
+            (dist_from_start[neighbor] > dist_from_start[node] + cost)) {
+          dist_from_start[neighbor] = dist_from_start[node] + cost;
           prev[neighbor] = node;
-          pq.emplace(dist[neighbor], neighbor);
+          pq.emplace(dist_from_start[neighbor], neighbor);
         }
       }
     }
 
-    if (!prev.contains(to))
+    if (!prev.contains(end))
       return {0, {}};
 
-    auto p = prev[to];
-    std::vector<CounterType> result = {to};
-    while (p != from) {
-      result.push_back(p);
+    auto p = prev[end];
+    std::vector<CounterType> djikstra_path = {end};
+    while (p != start) {
+      djikstra_path.push_back(p);
       p = prev[p];
     }
-    result.push_back(from);
-    std::ranges::reverse(result);
+    djikstra_path.push_back(start);
+    std::ranges::reverse(djikstra_path);
 
-    return {dist[to], result};
+    return {dist_from_start[end], djikstra_path};
   }
 
   /// INFO: Strongly connected components (SCC)
@@ -311,24 +316,14 @@ class DAG : public DiGraph<NodeType, Cost, CounterType> {
 public:
   // A topological sort is a reversed post order
   auto topo_sort() -> std::vector<CounterType> const {
-
-    std::vector<CounterType> result;
-    auto vec_push = [&](auto node) {
-      result.push_back(node);
-      return true;
-    };
-
-    auto from = this->graph.begin();
-    if (from == this->graph.end())
-      return {};
-
     auto dfs_result = this->template dfs<VisitOrder::post>();
-    std::ranges::reverse(result);
-    if (dfs_result == std::nullopt)
-      return result;
-    return {};
+    std::ranges::reverse(dfs_result);
+    return dfs_result;
   }
 };
-
+template class DiGraph<std::string, float_t, uint16_t>;
+template class DAG<std::string, float_t, uint16_t>;
+template class DiGraph<uint32_t, uint32_t, uint16_t>;
+template class DAG<uint32_t, uint32_t, uint16_t>;
 } // namespace lean_graph
 /*template class DiGraph<float_t>;*/
