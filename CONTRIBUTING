@@ -2,9 +2,10 @@
 
 ## Looking to contribute? 
 
-Current the library is in unstable mode, please use it and contribute in terms of:
+Current the library is in unstable api mode, please use it and contribute in terms of:
+
 - API opinions
-- code dive reviews,
+- Code dive reviews,
 - Docs updates
 - New algorithms suggestions.
 
