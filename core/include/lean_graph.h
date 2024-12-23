@@ -42,7 +42,7 @@ public:
   }
   bool counter_exceeds(CounterType aspect) const { return count > aspect; }
   CounterType get_counter(Aspect aspect) {
-    if (!exist(aspect))
+    if (not exist(aspect))
       counter[aspect] = count++;
     return counter[aspect];
   }
@@ -84,11 +84,11 @@ protected:
     std::unordered_set<CounterType> &visited =
         pre_visited.has_value() ? pre_visited->get() : local_visited;
     std::vector<CounterType> result;
-    if (!existCounterNode(from))
+    if (not existCounterNode(from))
       return {};
 
     stck.push(tup(from, VisitOrder::pre));
-    while (!stck.empty()) {
+    while (not stck.empty()) {
       auto [current_node, visit_order] = stck.top();
       stck.pop();
       visited.insert(current_node);
@@ -124,11 +124,11 @@ protected:
     std::unordered_set<CounterType> &visited =
         pre_visited.has_value() ? pre_visited->get() : local_visited;
     std::vector<CounterType> result;
-    if (!existNode(from))
+    if (not existNode(from))
       return {};
 
     q.push(tup(from, VisitOrder::pre));
-    while (!q.empty()) {
+    while (not q.empty()) {
       auto [current_node, visit_order] = q.front();
       q.pop();
       visited.insert(current_node);
@@ -169,7 +169,7 @@ public:
 
   auto modifyEdge(CounterEdge edge, Cost new_cost)
       -> std::optional<edge_error> {
-    if (!existEdge(edge))
+    if (not existEdge(edge))
       return edge_error::duplicate;
 
     const auto &[from, to, old_cost] = edge;
@@ -192,7 +192,7 @@ public:
     /// NOTE: To bypass unused var warning in structured bindings
     auto from = std::get<0>(edge), to = std::get<1>(edge);
     /*auto [from, to] = edge;*/
-    if (!existCounterNode(from))
+    if (not existCounterNode(from))
       return false;
     auto s = this->graph.find(from);
     if (s == this->graph.end())
@@ -220,7 +220,7 @@ public:
     std::unordered_set<CounterType> visited;
     std::vector<CounterType> result;
     for (auto [node, st] : graph) {
-      if (!visited.contains(node))
+      if (not visited.contains(node))
         result.insert_range(result.end(),
                             explore_dfs_protected<v>(node, visited));
     }
@@ -234,7 +234,7 @@ public:
     std::unordered_set<CounterType> visited;
     std::vector<CounterType> result;
     for (auto [node, st] : graph) {
-      if (!visited.contains(node))
+      if (not visited.contains(node))
         result.insert_range(result.end(),
                             explore_bfs_protected<v>(node, visited));
     }
@@ -263,7 +263,7 @@ public:
   auto djikstra(CounterType start, CounterType end,
                 auto compare = std::greater<>())
       -> std::tuple<Cost, std::vector<CounterType>> {
-    if (!existNode(start) || !existNode(end))
+    if (not existNode(start))
       return {0, {}};
     std::unordered_map<CounterType, Cost> dist_from_start;
     std::unordered_map<CounterType, CounterType> prev;
@@ -274,12 +274,12 @@ public:
         pq(compare);
 
     pq.emplace(dist_from_start[start], start);
-    while (!pq.empty()) {
+    while (not pq.empty()) {
       auto [dist_node, node] = pq.top();
       pq.pop();
 
       for (auto [neighbor, cost] : graph[node]) {
-        if (!dist_from_start.contains(neighbor) or
+        if (not dist_from_start.contains(neighbor) or
             (dist_from_start[neighbor] > dist_node[node] + cost)) {
           dist_from_start[neighbor] = dist_node[node] + cost;
           prev[neighbor] = node;
@@ -288,7 +288,7 @@ public:
       }
     }
 
-    if (!prev.contains(end))
+    if (not prev.contains(end))
       return {0, {}};
 
     auto p = prev[end];
