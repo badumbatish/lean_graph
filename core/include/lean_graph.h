@@ -302,6 +302,7 @@ public:
 
     return {dist_from_start[end], djikstra_path};
   }
+  auto bellman_ford(auto compare = std::greater<>());
 
   /// INFO: Strongly connected components (SCC)
   auto scc() -> std::vector<DiGraph> const;
