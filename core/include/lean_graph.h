@@ -1,6 +1,7 @@
 #pragma once
 #include <__expected/unexpected.h>
 #include <algorithm>
+#include <cmath>
 #include <expected>
 #include <optional>
 #include <queue>
@@ -48,7 +49,8 @@ public:
 
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
-template <class NodeType, class Cost, class CounterType = std::uint16_t>
+template <class NodeType, class Cost = float_t,
+          class CounterType = std::uint16_t>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DiGraph {
 public:
@@ -302,9 +304,10 @@ public:
 
 /// INFO: A DAG is a Directed Acyclic Graph that can be multi-edges, with
 /// edge-cost being different.
-template <class Cost, class CounterType = std::uint16_t>
-  requires std::is_arithmetic_v<Cost>
-class DAG : public DiGraph<Cost, CounterType> {
+template <class NodeType, class Cost = float_t,
+          class CounterType = std::uint16_t>
+  requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
+class DAG : public DiGraph<NodeType, Cost, CounterType> {
 public:
   // A topological sort is a reversed post order
   auto topo_sort() -> std::vector<CounterType> const {
