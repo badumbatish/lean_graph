@@ -253,7 +253,7 @@ public:
   auto djikstra(CounterType from, CounterType to,
                 auto compare = std::greater<>())
       -> std::tuple<Cost, std::vector<CounterType>> {
-    if (!existNode(from))
+    if (!existNode(from) || !existNode(to))
       return {0, {}};
     std::unordered_map<CounterType, Cost> dist;
     std::unordered_map<CounterType, CounterType> prev;
@@ -272,7 +272,7 @@ public:
         if (!dist.contains(neighbor) or (dist[neighbor] > dist[node] + cost)) {
           dist[neighbor] = dist[node] + cost;
           prev[neighbor] = node;
-          pq.push(dist[neighbor], neighbor);
+          pq.emplace(dist[neighbor], neighbor);
         }
       }
     }
@@ -282,7 +282,7 @@ public:
 
     auto p = prev[to];
     std::vector<CounterType> result = {to};
-    while (prev != from) {
+    while (p != from) {
       result.push_back(p);
       p = prev[p];
     }
