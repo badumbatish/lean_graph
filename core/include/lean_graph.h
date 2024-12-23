@@ -247,8 +247,50 @@ public:
 
   /// INFO: Single source, single path dijkstra algorithm
   /// User discretion required, user might input negative cost.
-  auto djikstra(CounterType from, CounterType to) const
-      -> std::vector<CounterType>;
+  ///
+  /// Successful djikstra will contain at least a vector of two nodes.
+  /// If you're not a nerd, please be careful
+  auto djikstra(CounterType from, CounterType to,
+                auto compare = std::greater<>())
+      -> std::tuple<Cost, std::vector<CounterType>> {
+    if (!existNode(from))
+      return {0, {}};
+    std::unordered_map<CounterType, Cost> dist;
+    std::unordered_map<CounterType, CounterType> prev;
+    dist[from] = 0;
+    std::priority_queue<std::tuple<Cost, CounterType>,
+                        std::vector<std::tuple<Cost, CounterType>>,
+                        decltype(compare)>
+        pq(compare);
+
+    pq.emplace(dist[from], from);
+    while (!pq.empty()) {
+      auto [dist_node, node] = pq.top();
+      pq.pop();
+
+      for (auto [neighbor, cost] : graph[dist_node]) {
+        if (!dist.contains(neighbor) or (dist[neighbor] > dist[node] + cost)) {
+          dist[neighbor] = dist[node] + cost;
+          prev[neighbor] = node;
+          pq.push(dist[neighbor], neighbor);
+        }
+      }
+    }
+
+    if (!prev.contains(to))
+      return {0, {}};
+
+    auto p = prev[to];
+    std::vector<CounterType> result = {to};
+    while (prev != from) {
+      result.push_back(p);
+      p = prev[p];
+    }
+    result.push_back(from);
+    std::ranges::reverse(result);
+
+    return {dist[to], result};
+  }
 
   /// INFO: Strongly connected components (SCC)
   auto scc() -> std::vector<DiGraph> const;
@@ -273,7 +315,7 @@ public:
     if (from == this->graph.end())
       return {};
 
-    auto dfs_result = this->template dfs<VisitOrder::pre>();
+    auto dfs_result = this->template dfs<VisitOrder::post>();
     std::ranges::reverse(result);
     if (dfs_result == std::nullopt)
       return result;

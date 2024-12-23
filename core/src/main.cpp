@@ -1,9 +1,6 @@
 #include "lean_graph.h"
 #include <cstdint>
 #include <iostream>
-#include <utility>
-#include <variant>
-#include <vector> // helper type for the visitor #4
 
 using namespace lean_graph;
 template <class N, class C, class T> void make_graph() {
