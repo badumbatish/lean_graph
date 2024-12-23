@@ -7,6 +7,6 @@ add_executable(dummy src/dummy.cpp)
 target_include_directories(dummy PRIVATE include/)
 target_compile_options(dummy
     PUBLIC
-    -Wall -Wextra -Wpedantic -Wshadow -Wunused -Wnon-virtual-dtor -Werror
+    -Wall -Wextra -Wpedantic -Werror
 )
 

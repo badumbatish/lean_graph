@@ -280,8 +280,8 @@ public:
 
       for (auto [neighbor, cost] : graph[node]) {
         if (!dist_from_start.contains(neighbor) or
-            (dist_from_start[neighbor] > dist_from_start[node] + cost)) {
-          dist_from_start[neighbor] = dist_from_start[node] + cost;
+            (dist_from_start[neighbor] > dist_node[node] + cost)) {
+          dist_from_start[neighbor] = dist_node[node] + cost;
           prev[neighbor] = node;
           pq.emplace(dist_from_start[neighbor], neighbor);
         }
