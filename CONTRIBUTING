@@ -2,8 +2,12 @@
 
 ## Looking to contribute? 
 
-Current the library is in unstable mode, please use it and contribute in terms of API opinions, code dive reviews, and new algorithms suggestions.
+Current the library is in unstable mode, please use it and contribute in terms of:
+- API opinions
+- code dive reviews,
+- Docs updates
+- New algorithms suggestions.
 
 Implementation contributions are not accepted right now. Author's self implementing graph algorithms.
-
+### Docs
 ### Algo suggestion
