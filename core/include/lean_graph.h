@@ -2,8 +2,6 @@
 #include <__expected/unexpected.h>
 #include <algorithm>
 #include <expected>
-#include <functional>
-#include <map>
 #include <optional>
 #include <queue>
 #include <set>
@@ -12,13 +10,20 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
+
+namespace lean_graph {
+
+template <class... Ts> struct overloaded : Ts... {
+  using Ts::operator()...;
+};
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 enum class node_error { not_exist, duplicate, general_error };
 enum class edge_error { not_exist, duplicate, general_error };
-using CounterType = uint32_t;
-
+enum VisitOrder { pre, post };
 /// INFO: A counter class
-template <class Aspect> class Counter {
+template <class Aspect, class CounterType> class Counter {
   std::unordered_map<Aspect, CounterType> counter;
   CounterType count;
 
@@ -38,7 +43,7 @@ public:
 
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
-template <class Cost, class CounterType = std::uint16_t>
+template <class NodeType, class Cost, class CounterType = std::uint16_t>
   requires std::is_arithmetic_v<Cost>
 class DiGraph {
 public:
@@ -57,30 +62,112 @@ public:
   using EdgeResult = std::expected<CounterEdge, node_error>;
 
 protected:
-  enum VisitOrder { pre, post };
-  std::map<CounterType, std::set<CounterHalfEdge>> graph;
-  Counter<CounterType> node_counter;
-  auto NodeToCounter(CounterType node) -> NodeResult {
-    if (!node_counter.exist(node))
-      return std::unexpected<node_error>(node_error::not_exist);
-    return node_counter.get_counter(node);
+  std::unordered_map<CounterType, std::set<CounterHalfEdge>> graph;
+  Counter<NodeType, CounterType> node_counter;
+
+  template <VisitOrder v>
+  auto explore_dfs_protected(
+      CounterType from,
+      std::optional<std::reference_wrapper<std::unordered_set<CounterType>>>
+          pre_visited = std::nullopt) const -> std::vector<CounterType> {
+    using tup = std::tuple<CounterType, VisitOrder>;
+    std::stack<tup> stck;
+    std::unordered_set<CounterType> local_visited;
+    std::unordered_set<CounterType> &visited =
+        pre_visited.has_value() ? pre_visited->get() : local_visited;
+    std::vector<CounterType> result;
+    if (!existNode(from))
+      return {};
+
+    stck.push(tup(from, VisitOrder::pre));
+    while (!stck.empty()) {
+      auto [current_node, visit_order] = stck.top();
+      stck.pop();
+      visited.insert(current_node);
+
+      if (visit_order == VisitOrder::pre) {
+        if constexpr (v == VisitOrder::pre)
+          result.push_back(current_node);
+
+        stck.push(tup(current_node, VisitOrder::post));
+        auto neighbors = graph.find(current_node);
+        if (neighbors == graph.end())
+          continue;
+        for (auto &[neighbor, cost] : (*neighbors).second) {
+          if (visited.contains(neighbor))
+            continue;
+          stck.push(tup(neighbor, VisitOrder::pre));
+        }
+      } else if constexpr (v == VisitOrder::post)
+        result.push_back(current_node);
+    }
+
+    return result;
+  }
+
+  template <VisitOrder v>
+  auto explore_bfs_protected(
+      CounterType from,
+      std::optional<std::reference_wrapper<std::unordered_set<CounterType>>>
+          pre_visited = std::nullopt) const -> std::vector<CounterType> {
+    using tup = std::tuple<CounterType, VisitOrder>;
+    std::queue<tup> q;
+    std::unordered_set<CounterType> local_visited;
+    std::unordered_set<CounterType> &visited =
+        pre_visited.has_value() ? pre_visited->get() : local_visited;
+    std::vector<CounterType> result;
+    if (!existNode(from))
+      return {};
+
+    q.push(tup(from, VisitOrder::pre));
+    while (!q.empty()) {
+      auto [current_node, visit_order] = q.front();
+      q.pop();
+      visited.insert(current_node);
+
+      if (visit_order == VisitOrder::pre) {
+        if constexpr (v == VisitOrder::pre)
+          result.push_back(current_node);
+
+        q.push(tup(current_node, VisitOrder::post));
+        auto neighbors = graph.find(current_node);
+        if (neighbors == graph.end())
+          continue;
+        for (auto &[neighbor, cost] : (*neighbors).second) {
+          if (visited.contains(neighbor))
+            continue;
+          q.push(tup(neighbor, VisitOrder::pre));
+        }
+      } else if constexpr (v == VisitOrder::post)
+        result.push_back(current_node);
+    }
+
+    return result;
   }
 
 public:
-  auto registerNode(CounterType node) -> CounterType {
+  auto registerNode(NodeType node) -> CounterType {
     if (existNode(node))
       return node_counter.get_counter(node);
 
     return node_counter.get_counter(node);
   }
 
-  auto registerEdge(CounterEdge edge) -> CounterEdge {
-    if (existEdge(edge))
-      return edge;
-
-    const auto &[from, to, cost] = edge;
+  auto registerEdge(CounterEdge edge) -> void {
+    const auto [from, to, cost] = edge;
     this->graph[from].insert({to, cost});
-    return edge;
+    return;
+  }
+
+  auto modifyEdge(CounterEdge edge, Cost new_cost)
+      -> std::optional<edge_error> {
+    if (!existEdge(edge))
+      return edge_error::duplicate;
+
+    const auto &[from, to, old_cost] = edge;
+    this->graph[from].erase({to, old_cost});
+    this->graph[from].insert({to, new_cost});
+    return std::nullopt;
   }
 
   auto existEdge(CounterEdge edge) const -> bool {
@@ -116,82 +203,46 @@ public:
     return node_counter.exist(node);
   }
 
-  /// INFO: Performs dfs with 2 callables of pre, and post order
-  auto dfs(CounterType from, std::function<bool(CounterType)> pre,
-           std::function<bool(CounterType)> post) const
-      -> std::optional<node_error> {
-    using tup = std::tuple<CounterType, VisitOrder>;
-    std::stack<tup> stck;
+  /// INFO: Performs full dfs of all nodes connected to a node
+  /// with either pre or post order from a single node
+  template <VisitOrder v> auto dfs() const -> std::vector<CounterType> {
     std::unordered_set<CounterType> visited;
-    if (!existNode(from))
-      return node_error::not_exist;
-
-    stck.push(tup(from, VisitOrder::pre));
-    while (!stck.empty()) {
-      auto [current_node, visit_order] = stck.top();
-      stck.pop();
-      visited.insert(current_node);
-
-      if (visit_order == VisitOrder::pre) {
-        if (pre && !pre(current_node))
-          return std::nullopt;
-
-        stck.push(tup(current_node, VisitOrder::post));
-        auto neighbors = graph.find(current_node);
-        if (neighbors == graph.end())
-          continue;
-        for (auto &[neighbor, cost] : (*neighbors).second) {
-          if (visited.contains(neighbor))
-            continue;
-          stck.push(tup(neighbor, VisitOrder::pre));
-        }
-      } else {
-        if (post && !post(current_node))
-          return std::nullopt;
-      }
+    std::vector<CounterType> result;
+    for (auto [node, st] : graph) {
+      if (!visited.contains(node))
+        result.insert_range(result.end(),
+                            explore_dfs_protected<v>(node, visited));
     }
 
-    return std::nullopt;
+    return result;
   }
-  /// INFO: Performs dfs with 2 callables of pre, and post order
-  auto bfs(CounterType from, std::function<bool(CounterType)> pre,
-           std::function<bool(CounterType)> post) const
-      -> std::optional<node_error> {
-    using tup = std::tuple<CounterType, VisitOrder>;
-    std::queue<tup> q;
+
+  /// INFO: Performs full dfs of all nodes connected to a node
+  /// with either pre or post order from a single node
+  template <VisitOrder v>
+  auto bfs() const -> std::variant<std::vector<CounterType>, node_error> {
     std::unordered_set<CounterType> visited;
-
-    // NOTE: Check if the node actually exists
-    if (!existNode(from))
-      return node_error::not_exist;
-
-    q.push(tup(from, VisitOrder::pre));
-
-    while (!q.empty()) {
-      auto [current_node, visit_order] = q.front();
-      q.pop();
-      visited.insert(current_node);
-
-      if (visit_order == VisitOrder::pre) {
-        if (pre && !pre(current_node))
-          return std::nullopt;
-
-        q.push(tup(current_node, VisitOrder::post));
-        auto neighbors = graph.find(current_node);
-        if (neighbors == graph.end())
-          continue;
-        for (auto &[neighbor, cost] : (*neighbors).second) {
-          if (visited.contains(neighbor))
-            continue;
-          q.push(tup(neighbor, VisitOrder::pre));
-        }
-      } else {
-        if (post && !post(current_node))
-          return std::nullopt;
-      }
+    std::vector<CounterType> result;
+    for (auto [node, st] : graph) {
+      if (!visited.contains(node))
+        result.insert_range(result.end(),
+                            explore_bfs_protected<v>(node, visited));
     }
+    return result;
+  }
 
-    return std::nullopt;
+  /// INFO: Performs exploration of all nodes connected to a node in dfs fashion
+  /// with either pre or post order from a single node
+  template <VisitOrder v>
+  auto explore_dfs(CounterType from) const -> std::vector<CounterType> {
+    return explore_dfs_protected<v>(from, std::nullopt);
+  }
+
+  /// INFO: Performs exploration of all nodes connected to a node in bfs fashion
+  /// with either pre or post order as template from a single node
+  template <VisitOrder v>
+  auto explore_bfs(CounterType from) const -> std::vector<CounterType> {
+    return explore_bfs_protected<v>(from, std::nullopt);
   }
 
   /// INFO: Single source, single path dijkstra algorithm
@@ -200,7 +251,7 @@ public:
       -> std::vector<CounterType>;
 
   /// INFO: Strongly connected components (SCC)
-  auto scc() -> std::vector<DiGraph>;
+  auto scc() -> std::vector<DiGraph> const;
 };
 
 /// INFO: A DAG is a Directed Acyclic Graph that can be multi-edges, with
@@ -222,7 +273,7 @@ public:
     if (from == this->graph.end())
       return {};
 
-    auto dfs_result = dfs((*this->graph.begin()).first, nullptr, vec_push);
+    auto dfs_result = this->template dfs<VisitOrder::pre>();
     std::ranges::reverse(result);
     if (dfs_result == std::nullopt)
       return result;
@@ -230,7 +281,5 @@ public:
   }
 };
 
-/*template class DiGraph<uint32_t, uint32_t>;*/
+} // namespace lean_graph
 /*template class DiGraph<float_t>;*/
-/*template <class T, class C> class UGraph : public BasicGraph<T, C> {};*/
-/*template <class T, class C> class DiGraph : public BasicGraph<T, C> {};*/

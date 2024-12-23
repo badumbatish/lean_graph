@@ -1,9 +1,14 @@
 #include "lean_graph.h"
 #include <cstdint>
 #include <iostream>
-template <class C, class T> void make_graph() {
+#include <utility>
+#include <variant>
+#include <vector> // helper type for the visitor #4
 
-  DiGraph<C, T> graph;
+using namespace lean_graph;
+template <class N, class C, class T> void make_graph() {
+
+  DiGraph<N, C, T> graph;
   auto a = graph.registerNode(0);
   auto b = graph.registerNode(1);
   auto c = graph.registerNode(2);
@@ -12,32 +17,38 @@ template <class C, class T> void make_graph() {
   auto f = graph.registerNode(5);
   auto g = graph.registerNode(6);
 
-  auto ab = graph.registerEdge({a, b, 0});
-  auto ac = graph.registerEdge({a, c, 0});
-  auto bd = graph.registerEdge({b, d, 0});
-  auto be = graph.registerEdge({b, e, 0});
-  auto cf = graph.registerEdge({c, f, 0});
-  auto cg = graph.registerEdge({c, g, 0});
+  graph.registerEdge({a, b, 0});
+  graph.registerEdge({a, c, 0});
+  graph.registerEdge({b, d, 0});
+  graph.registerEdge({b, e, 0});
+  graph.registerEdge({c, f, 0});
+  graph.registerEdge({c, g, 0});
 
-  if (graph.existBlankEdge(ab)) {
+  if (graph.existBlankEdge({a, b})) {
     std::cout << "True" << std::endl;
   } else {
     std::cout << "False" << std::endl;
   }
-
-  auto print_node = [](CounterType node) {
-    std::cout << node << std::endl;
-    return true;
+  auto print_node = [](auto nodes) {
+    for (auto node : nodes) {
+      std::cout << node << " ";
+    }
+    std::cout << std::endl;
   };
-  std::cout << "Printing dfs\n";
-  graph.dfs(a, print_node, nullptr);
-  std::cout << "Printing bfs\n";
-  graph.bfs(a, print_node, nullptr);
+
+  auto dfs_pre = graph.template explore_dfs<VisitOrder::pre>(a);
+  auto dfs_post = graph.template explore_dfs<VisitOrder::post>(a);
+  print_node(dfs_pre);
+
+  auto full_dfs = graph.template dfs<VisitOrder::pre>();
+  print_node(full_dfs);
+  /*auto if (auto a = std::get<std::vector<T>>(dfs_pre)) { print_node(a); }*/
+  /*print_node(dfs_post);*/
 }
 int main() {
 
-  make_graph<uint32_t, uint32_t>();
-  make_graph<uint16_t, uint16_t>();
+  make_graph<uint32_t, uint32_t, uint32_t>();
+  /*make_graph<uint32_t, uint16_t, uint16_t>();*/
 
   return 0;
 }
