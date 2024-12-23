@@ -10,7 +10,6 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
-#include <variant>
 
 namespace lean_graph {
 
@@ -18,6 +17,14 @@ template <class... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+// Declaration of the concept “Hashable”, which is satisfied by any type “T”
+// such that for values “a” of type “T”, the expression std::hash<T>{}(a)
+// compiles and its result is convertible to std::size_t
+template <typename T>
+concept Hashable = requires(T a) {
+  { std::hash<T>{}(a) } -> std::convertible_to<std::size_t>;
+};
 
 enum class node_error { not_exist, duplicate, general_error };
 enum class edge_error { not_exist, duplicate, general_error };
@@ -37,14 +44,12 @@ public:
       counter[aspect] = count++;
     return counter[aspect];
   }
-
-  bool counter_exceeds(CounterType ceiling) const { return count > ceiling; }
 };
 
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
 template <class NodeType, class Cost, class CounterType = std::uint16_t>
-  requires std::is_arithmetic_v<Cost>
+  requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DiGraph {
 public:
   //  INFO: Edges type used internally and the user uses to interface with the
@@ -219,8 +224,7 @@ public:
 
   /// INFO: Performs full dfs of all nodes connected to a node
   /// with either pre or post order from a single node
-  template <VisitOrder v>
-  auto bfs() const -> std::variant<std::vector<CounterType>, node_error> {
+  template <VisitOrder v> auto bfs() const -> std::vector<CounterType> {
     std::unordered_set<CounterType> visited;
     std::vector<CounterType> result;
     for (auto [node, st] : graph) {
