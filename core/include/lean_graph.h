@@ -13,12 +13,6 @@
 #include <unordered_set>
 
 namespace lean_graph {
-
-template <class... Ts> struct overloaded : Ts... {
-  using Ts::operator()...;
-};
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
 // Declaration of the concept “Hashable”, which is satisfied by any type “T”
 // such that for values “a” of type “T”, the expression std::hash<T>{}(a)
 // compiles and its result is convertible to std::size_t
@@ -26,17 +20,37 @@ template <typename T>
 concept Hashable = requires(T a) {
   { std::hash<T>{}(a) } -> std::convertible_to<std::size_t>;
 };
+template <class Aspect, class CounterType> class Counter;
+
+/// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
+/// being different.
+template <class NodeType, class Cost = float_t,
+          class CounterType = std::uint16_t>
+  requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
+class DiGraph;
+
+/// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
+/// being different.
+template <class NodeType, class Cost = float_t,
+          class CounterType = std::uint16_t>
+  requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
+class DAG;
+
+template <class CounterType> class Connectivity;
 
 enum class node_error { not_exist, duplicate, general_error };
 enum class edge_error { not_exist, duplicate, general_error };
 enum VisitOrder { pre, post };
+} // namespace lean_graph
+
+namespace lean_graph {
 /// INFO: A counter class
 template <class Aspect, class CounterType> class Counter {
   std::unordered_map<Aspect, CounterType> counter;
   CounterType count;
 
 public:
-  Counter(CounterType start_from = 0) : count(start_from) {}
+  explicit Counter(CounterType start_from) : count(start_from) {}
   bool exist(Aspect aspect) const {
     return counter.find(aspect) != counter.end();
   }
@@ -50,8 +64,7 @@ public:
 
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
-template <class NodeType, class Cost = float_t,
-          class CounterType = std::uint16_t>
+template <class NodeType, class Cost, class CounterType>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DiGraph {
 public:
@@ -71,7 +84,7 @@ public:
 
 protected:
   std::unordered_map<CounterType, std::set<CounterHalfEdge>> graph;
-  Counter<NodeType, CounterType> node_counter;
+  Counter<NodeType, CounterType> node_counter{0};
 
   template <VisitOrder v>
   auto explore_dfs_protected(
@@ -155,9 +168,6 @@ protected:
 
 public:
   auto registerNode(NodeType node) -> CounterType {
-    if (existNode(node))
-      return node_counter.get_counter(node);
-
     return node_counter.get_counter(node);
   }
 
@@ -310,8 +320,7 @@ public:
 
 /// INFO: A DAG is a Directed Acyclic Graph that can be multi-edges, with
 /// edge-cost being different.
-template <class NodeType, class Cost = float_t,
-          class CounterType = std::uint16_t>
+template <class NodeType, class Cost, class CounterType>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DAG : public DiGraph<NodeType, Cost, CounterType> {
 public:
@@ -322,9 +331,52 @@ public:
     return dfs_result;
   }
 };
+
+/// INFO: Connectivity is just glorified union find
+template <class CounterType> class Connectivity {
+  std::unordered_map<CounterType, std::unordered_set<CounterType>> uf;
+  std::unordered_map<CounterType, uint32_t> rank;
+
+  /// INFO: find with path compression
+  CounterType find(CounterType a) {
+    if (uf.find(a) == uf.end()) // lazy rank computation
+      return a;
+
+    if (a != uf[a])
+      uf[a] = find(uf[a]);
+    return uf[a];
+  }
+
+  /// INFO: Unite (Union) a with b
+  void unite(CounterType a, CounterType b) {
+    auto ra = this->find(a);
+    auto rb = this->find(b);
+
+    if (ra == rb)
+      return;
+    if (rank[ra] > rank[rb])
+      uf[rb] = ra;
+    else {
+      uf[ra] = uf[rb];
+      if (rank[ra] == rank[rb])
+        rank[rb] = rank[rb] + 1;
+    }
+  }
+
+public:
+  bool is_connected(CounterType a, CounterType b) {
+    return this->find(a) == this->find(b);
+  }
+
+  void connect(CounterType a, CounterType b) { unite(a, b); }
+};
+} // namespace lean_graph
+
+namespace lean_graph {
 template class DiGraph<std::string, float_t, uint16_t>;
 template class DAG<std::string, float_t, uint16_t>;
 template class DiGraph<uint32_t, uint32_t, uint16_t>;
 template class DAG<uint32_t, uint32_t, uint16_t>;
-} // namespace lean_graph
+
+}; // namespace lean_graph
 /*template class DiGraph<float_t>;*/
