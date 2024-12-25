@@ -22,6 +22,10 @@ concept Hashable = requires(T a) {
 };
 template <class Aspect, class CounterType> class Counter;
 
+template <class NodeType, class Cost = float_t,
+          class CounterType = std::uint16_t>
+  requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
+class BasicGraph;
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
 template <class NodeType, class Cost = float_t,
@@ -64,6 +68,8 @@ public:
 
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
+///
+/// INFO: The underlying structure is AdjList
 template <class NodeType, class Cost, class CounterType>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DiGraph {
@@ -332,9 +338,101 @@ public:
   }
 };
 
+template <class NodeType, class Cost, class CounterType>
+  requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
+class UniGraph {
+
+public:
+  //  INFO: Edges type used internally and the user uses to interface with the
+  //  graph
+  using CounterEdge = std::tuple<CounterType, CounterType, Cost>;
+  using CounterBlankEdge = std::tuple<CounterType, CounterType>;
+  using CounterHalfEdge = std::tuple<CounterType, Cost>;
+
+  // INFO: Edge that the user use to register an edge
+  using Edge = std::tuple<CounterType, CounterType, Cost>;
+  using HalfEdge = std::tuple<CounterType, Cost>;
+
+  //  INFO: Results
+  using NodeResult = std::expected<CounterType, node_error>;
+  using EdgeResult = std::expected<CounterEdge, node_error>;
+
+protected:
+  std::unordered_map<CounterType, std::set<CounterHalfEdge>> graph;
+  Counter<NodeType, CounterType> node_counter{0};
+
+  template <VisitOrder v>
+  auto explore_dfs_protected(
+      CounterType from,
+      std::optional<std::reference_wrapper<std::unordered_set<CounterType>>>
+          pre_visited = std::nullopt) const -> std::vector<CounterType>;
+
+  template <VisitOrder v>
+  auto explore_bfs_protected(
+      CounterType from,
+      std::optional<std::reference_wrapper<std::unordered_set<CounterType>>>
+          pre_visited = std::nullopt) const -> std::vector<CounterType>;
+
+public:
+  auto registerNode(NodeType node) -> CounterType;
+
+  auto registerEdge(CounterEdge edge) -> void;
+
+  auto modifyEdge(CounterEdge edge, Cost new_cost) -> std::optional<edge_error>;
+
+  auto existEdge(CounterEdge edge) const -> bool;
+  auto existBlankEdge(CounterBlankEdge edge) const -> bool;
+  auto existBlankEdge(CounterEdge edge) const -> bool {
+    auto [from, to, cost] = edge;
+    return existBlankEdge({from, to});
+  }
+  auto existNode(NodeType node) const -> bool;
+  auto existCounterNode(CounterType node) const -> bool;
+
+  /// INFO: Performs full dfs of all nodes connected to a node
+  /// with either pre or post order from a single node
+  template <VisitOrder v> auto dfs() const -> std::vector<CounterType>;
+
+  /// INFO: Performs full dfs of all nodes connected to a node
+  /// with either pre or post order from a single node
+  template <VisitOrder v> auto bfs() const -> std::vector<CounterType>;
+
+  /// INFO: Performs exploration of all nodes connected to a node in dfs fashion
+  /// with either pre or post order from a single node
+  template <VisitOrder v>
+  auto explore_dfs(CounterType from) const -> std::vector<CounterType>;
+
+  /// INFO: Performs exploration of all nodes connected to a node in bfs fashion
+  /// with either pre or post order as template from a single node
+  template <VisitOrder v>
+  auto explore_bfs(CounterType from) const -> std::vector<CounterType>;
+
+  /// INFO: Single source, single path dijkstra algorithm
+  /// User discretion required, user might input negative cost.
+  ///
+  /// Successful djikstra will contain at least a vector of two nodes.
+  /// If you're not a nerd, please be careful
+  auto djikstra(CounterType start, CounterType end,
+                auto compare = std::greater<>())
+      -> std::tuple<Cost, std::vector<CounterType>>;
+  auto bellman_ford(auto compare = std::greater<>());
+
+  /// INFO: Strongly connected components (SCC)
+  auto scc() -> std::vector<UniGraph> const;
+  /*Connectivity<CounterType> getConnectivityInfo() {*/
+  /*  Connectivity<CounterType> c;*/
+  /*  for (auto &[node, neighbors] : this->graph) {*/
+  /*    for (auto [neighbor, cost] : neighbors)*/
+  /*      c.unite(node, neighbor);*/
+  /*  }*/
+  /*  return c;*/
+  /*}*/
+};
+// A topological sort is a reversed post order
+
 /// INFO: Connectivity is just glorified union find
 template <class CounterType> class Connectivity {
-  std::unordered_map<CounterType, std::unordered_set<CounterType>> uf;
+  std::unordered_map<CounterType, CounterType> uf;
   std::unordered_map<CounterType, uint32_t> rank;
 
   /// INFO: find with path compression
@@ -368,8 +466,11 @@ public:
     return this->find(a) == this->find(b);
   }
 
-  void connect(CounterType a, CounterType b) { unite(a, b); }
+  template <class NodeType, class Cost, class C>
+    requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
+  friend class UniGraph;
 };
+
 } // namespace lean_graph
 
 namespace lean_graph {
