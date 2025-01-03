@@ -1,11 +1,12 @@
 #include "lean_graph.h"
 #include <cstdint>
 #include <iostream>
+#include <unordered_map>
 
 using namespace lean_graph;
 template <class N, class C, class T> void make_graph() {
 
-  DiGraph<N, C, T> graph;
+  DiGraph<N, C, T, std::unordered_map<int, int>> graph;
   auto a = graph.registerNode(0);
   auto b = graph.registerNode(1);
   auto c = graph.registerNode(2);
