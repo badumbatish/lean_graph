@@ -12,6 +12,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
+/////////////////////////////////////////////////////////////////
+/////////////////////////// START DECL SPACE
+/////////////////////////////////////////////////////////////////
 namespace lean_graph {
 // Declaration of the concept “Hashable”, which is satisfied by any type “T”
 // such that for values “a” of type “T”, the expression std::hash<T>{}(a)
@@ -29,7 +32,7 @@ template <template <class, class, class, class> class DerivedGraph,
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class BasicGraph;
 
-/// INFO: DIGRAPH DECL - DiGraph Decl
+/// TAG: DIGRAPH DECL - DiGraph Decl
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
 template <class NodeType, class Cost = float_t,
@@ -38,7 +41,7 @@ template <class NodeType, class Cost = float_t,
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DiGraph;
 
-/// INFO: DAG DECL - DAG Decl
+/// TAG: DAG DECL - DAG Decl
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
 template <class NodeType, class Cost = float_t,
@@ -54,6 +57,34 @@ enum class edge_error { not_exist, duplicate, general_error };
 enum VisitOrder { pre, post };
 } // namespace lean_graph
 
+/////////////////////////////////////////////////////////////////
+/////////////////////////// END DECL SPACE
+/////////////////////////////////////////////////////////////////
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+/////////////////////////////////////////////////////////////////
+/////////////////////////// START IMPL SPACE
+/////////////////////////////////////////////////////////////////
 namespace lean_graph {
 /// INFO: A counter class
 template <class Aspect, class CounterType, class H> class Counter {
@@ -72,11 +103,81 @@ public:
     return counter[aspect];
   }
 };
+template <class CounterType, class Cost>
+using CounterEdge = std::tuple<CounterType, CounterType, Cost>;
+template <class CounterType>
+using CounterBlankEdge = std::tuple<CounterType, CounterType>;
+template <class CounterType, class Cost>
+using CounterHalfEdge = std::tuple<CounterType, Cost>;
+
+template <class CounterType, class Cost>
+using Edge = std::tuple<CounterType, CounterType, Cost>;
+
+template <class CounterType, class Cost>
+using NodeResult = std::expected<CounterType, node_error>;
+template <class CounterType, class Cost>
+using EdgeResult = std::expected<CounterEdge<CounterType, Cost>, node_error>;
 
 template <template <class, class, class, class> class DerivedGraph,
           class NodeType, class Cost, class CounterType, class H>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
-class BasicGraph {};
+class BasicGraph {
+public:
+  using DerivedGraphType = DerivedGraph<NodeType, Cost, CounterType, H>;
+
+  auto registerNode(NodeType node) -> CounterType;
+  auto registerEdge(CounterEdge<CounterType, Cost> edge) -> void;
+  auto modifyEdge(CounterEdge<CounterType, Cost> edge, Cost new_cost)
+      -> std::optional<edge_error>;
+
+  auto existEdge(CounterEdge<CounterType, Cost> edge) const -> bool;
+  auto existBlankEdge(CounterBlankEdge<CounterType> edge) const -> bool;
+  auto existBlankEdge(CounterEdge<CounterType, Cost> edge) const -> bool;
+  auto existNode(NodeType node) const -> bool;
+  auto existCounterNode(CounterType node) const -> bool;
+
+  /// INFO: Performs full dfs of all nodes connected to a node
+  /// with either pre or post order from a single node
+  template <VisitOrder v> auto dfs() const -> std::vector<CounterType> {
+    return static_cast<DerivedGraphType *>(this)->dfs();
+  }
+
+  /// INFO: Performs full dfs of all nodes connected to a node
+  /// with either pre or post order from a single node
+  template <VisitOrder v> auto bfs() const -> std::vector<CounterType> {
+
+    return static_cast<DerivedGraphType *>(this)->bfs();
+  }
+
+  /// INFO: Performs exploration of all nodes connected to a node in dfs fashion
+  /// with either pre or post order from a single node
+  template <VisitOrder v>
+  auto explore_dfs(CounterType from) const -> std::vector<CounterType> {
+    return static_cast<DerivedGraphType *>(this)->explore_dfs();
+  }
+
+  /// INFO: Performs exploration of all nodes connected to a node in bfs fashion
+  /// with either pre or post order as template from a single node
+  template <VisitOrder v>
+  auto explore_bfs(CounterType from) const -> std::vector<CounterType> {
+
+    return static_cast<DerivedGraphType *>(this)->explore_bfs();
+  }
+
+  /// INFO: Single source, single path dijkstra algorithm
+  /// User discretion required, user might input negative cost.
+  ///
+  /// Successful djikstra will contain at least a vector of two nodes.
+  /// If you're not a nerd, please be careful
+  auto djikstra(CounterType start, CounterType end,
+                auto compare = std::greater<>())
+      -> std::tuple<Cost, std::vector<CounterType>> {
+    return static_cast<DerivedGraphType *>(this)->djikstra(compare);
+  }
+  auto bellman_ford(auto compare = std::greater<>()) {
+    return static_cast<DerivedGraphType *>(this)->bellman_ford(compare);
+  }
+};
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
 ///
@@ -87,16 +188,16 @@ class DiGraph : public BasicGraph<DiGraph, NodeType, Cost, CounterType, H> {
 public:
   //  INFO: Edges type used internally and the user uses to interface with the
   //  graph
-  using CounterEdge = std::tuple<CounterType, CounterType, Cost>;
-  using CounterBlankEdge = std::tuple<CounterType, CounterType>;
-  using CounterHalfEdge = std::tuple<CounterType, Cost>;
+  typedef std::tuple<CounterType, CounterType, Cost> CounterEdge;
+  typedef std::tuple<CounterType, CounterType> CounterBlankEdge;
+  typedef std::tuple<CounterType, Cost> CounterHalfEdge;
 
   // INFO: Edge that the user use to register an edge
-  using Edge = std::tuple<CounterType, CounterType, Cost>;
+  typedef std::tuple<CounterType, CounterType, Cost> Edge;
 
   //  INFO: Results
-  using NodeResult = std::expected<CounterType, node_error>;
-  using EdgeResult = std::expected<CounterEdge, node_error>;
+  typedef std::expected<CounterType, node_error> NodeResult;
+  typedef std::expected<CounterEdge, node_error> EdgeResult;
 
 protected:
   std::unordered_map<CounterType, std::set<CounterHalfEdge>> graph;
