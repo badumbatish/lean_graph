@@ -3,10 +3,17 @@
 #include <iostream>
 #include <unordered_map>
 
-using namespace lean_graph;
+namespace LG = lean_graph;
+namespace lean_graph {
+template class DiGraph<std::string, float_t, uint16_t>;
+template class DAG<std::string, float_t, uint16_t>;
+template class DiGraph<uint32_t, uint32_t, uint16_t>;
+template class DAG<uint32_t, uint32_t, uint16_t>;
+
+} // namespace lean_graph
 template <class N, class C, class T> void make_graph() {
 
-  DiGraph<N, C, T, std::unordered_map<int, int>> graph;
+  LG::DiGraph<N, C, T, std::unordered_map<int, int>> graph;
   auto a = graph.registerNode(0);
   auto b = graph.registerNode(1);
   auto c = graph.registerNode(2);
@@ -34,11 +41,11 @@ template <class N, class C, class T> void make_graph() {
     std::cout << std::endl;
   };
 
-  auto dfs_pre = graph.template explore_dfs<VisitOrder::pre>(a);
-  auto dfs_post = graph.template explore_dfs<VisitOrder::post>(a);
+  auto dfs_pre = graph.template explore_dfs<LG::VisitOrder::pre>(a);
+  auto dfs_post = graph.template explore_dfs<LG::VisitOrder::post>(a);
   print_node(dfs_pre);
 
-  auto full_dfs = graph.template dfs<VisitOrder::pre>();
+  auto full_dfs = graph.template dfs<LG::VisitOrder::pre>();
   print_node(full_dfs);
   /*auto if (auto a = std::get<std::vector<T>>(dfs_pre)) { print_node(a); }*/
   /*print_node(dfs_post);*/

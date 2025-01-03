@@ -19,42 +19,77 @@ namespace lean_graph {
 // Declaration of the concept “Hashable”, which is satisfied by any type “T”
 // such that for values “a” of type “T”, the expression std::hash<T>{}(a)
 // compiles and its result is convertible to std::size_t
+//
+/// TAG: Hashable DECL
 template <typename T>
 concept Hashable = requires(T a) {
   { std::hash<T>{}(a) } -> std::convertible_to<std::size_t>;
 };
+
+/// TAG: DefaultHashMap DECL
+template <class NodeType, class CounterType>
+using DefaultHashMap = std::unordered_map<NodeType, CounterType>;
+
+/// TAG: Counter DECL
 template <class Aspect, class CounterType, class H> class Counter;
 
+/// TAG: BasicGraph DECL
 template <template <class, class, class, class> class DerivedGraph,
           class NodeType, class Cost = float_t,
           class CounterType = std::uint16_t,
-          class H = std::unordered_map<NodeType, CounterType>>
+          class H = DefaultHashMap<NodeType, CounterType>>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class BasicGraph;
 
-/// TAG: DIGRAPH DECL - DiGraph Decl
+/// TAG: DiGraph DECL
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
 template <class NodeType, class Cost = float_t,
           class CounterType = std::uint16_t,
-          class H = std::unordered_map<NodeType, CounterType>>
+          class H = DefaultHashMap<NodeType, CounterType>>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DiGraph;
 
-/// TAG: DAG DECL - DAG Decl
+/// TAG: DAG DECL
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
 template <class NodeType, class Cost = float_t,
           class CounterType = std::uint16_t,
-          class H = std::unordered_map<NodeType, CounterType>>
+          class H = DefaultHashMap<NodeType, CounterType>>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DAG;
 
+/// TAG: UniGraph DECL
+template <class NodeType, class Cost = float_t,
+          class CounterType = std::uint16_t,
+          class H = DefaultHashMap<NodeType, CounterType>>
+  requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
+class UniGraph;
+
+/// TAG: Connectivity DECL
 template <class CounterType> class Connectivity;
 
 enum class node_error { not_exist, duplicate, general_error };
 enum class edge_error { not_exist, duplicate, general_error };
 enum VisitOrder { pre, post };
+
+// TAG: Edge DECL
+template <class CounterType, class Cost>
+using CounterEdge = std::tuple<CounterType, CounterType, Cost>;
+template <class CounterType>
+using CounterBlankEdge = std::tuple<CounterType, CounterType>;
+template <class CounterType, class Cost>
+using CounterHalfEdge = std::tuple<CounterType, Cost>;
+
+template <class CounterType, class Cost>
+using Edge = std::tuple<CounterType, CounterType, Cost>;
+
+// TAG: RESULT DECL
+template <class CounterType, class Cost>
+using NodeResult = std::expected<CounterType, node_error>;
+template <class CounterType, class Cost>
+using EdgeResult = std::expected<CounterEdge<CounterType, Cost>, node_error>;
+
 } // namespace lean_graph
 
 /////////////////////////////////////////////////////////////////
@@ -83,9 +118,11 @@ enum VisitOrder { pre, post };
 //
 //
 /////////////////////////////////////////////////////////////////
-/////////////////////////// START IMPL SPACE
+/////////////////////////// START DEFN SPACE
 /////////////////////////////////////////////////////////////////
 namespace lean_graph {
+
+// TAG: Counter DEFN
 /// INFO: A counter class
 template <class Aspect, class CounterType, class H> class Counter {
   H counter;
@@ -103,21 +140,10 @@ public:
     return counter[aspect];
   }
 };
-template <class CounterType, class Cost>
-using CounterEdge = std::tuple<CounterType, CounterType, Cost>;
-template <class CounterType>
-using CounterBlankEdge = std::tuple<CounterType, CounterType>;
-template <class CounterType, class Cost>
-using CounterHalfEdge = std::tuple<CounterType, Cost>;
 
-template <class CounterType, class Cost>
-using Edge = std::tuple<CounterType, CounterType, Cost>;
-
-template <class CounterType, class Cost>
-using NodeResult = std::expected<CounterType, node_error>;
-template <class CounterType, class Cost>
-using EdgeResult = std::expected<CounterEdge<CounterType, Cost>, node_error>;
-
+// TAG: BasicGraph DEFN
+/// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
+/// being different.
 template <template <class, class, class, class> class DerivedGraph,
           class NodeType, class Cost, class CounterType, class H>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
@@ -153,7 +179,7 @@ public:
   /// with either pre or post order from a single node
   template <VisitOrder v>
   auto explore_dfs(CounterType from) const -> std::vector<CounterType> {
-    return static_cast<DerivedGraphType *>(this)->explore_dfs();
+    return static_cast<DerivedGraphType *>(this)->explore_dfs(from);
   }
 
   /// INFO: Performs exploration of all nodes connected to a node in bfs fashion
@@ -161,7 +187,7 @@ public:
   template <VisitOrder v>
   auto explore_bfs(CounterType from) const -> std::vector<CounterType> {
 
-    return static_cast<DerivedGraphType *>(this)->explore_bfs();
+    return static_cast<DerivedGraphType *>(this)->explore_bfs(from);
   }
 
   /// INFO: Single source, single path dijkstra algorithm
@@ -172,35 +198,21 @@ public:
   auto djikstra(CounterType start, CounterType end,
                 auto compare = std::greater<>())
       -> std::tuple<Cost, std::vector<CounterType>> {
-    return static_cast<DerivedGraphType *>(this)->djikstra(compare);
+    return static_cast<DerivedGraphType *>(this)->djikstra(start, end, compare);
   }
   auto bellman_ford(auto compare = std::greater<>()) {
     return static_cast<DerivedGraphType *>(this)->bellman_ford(compare);
   }
 };
-/// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
-/// being different.
 ///
-/// INFO: The underlying structure is AdjList
+// TAG: DiGraph DEFN
 template <class NodeType, class Cost, class CounterType, class H>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DiGraph : public BasicGraph<DiGraph, NodeType, Cost, CounterType, H> {
 public:
-  //  INFO: Edges type used internally and the user uses to interface with the
-  //  graph
-  typedef std::tuple<CounterType, CounterType, Cost> CounterEdge;
-  typedef std::tuple<CounterType, CounterType> CounterBlankEdge;
-  typedef std::tuple<CounterType, Cost> CounterHalfEdge;
-
-  // INFO: Edge that the user use to register an edge
-  typedef std::tuple<CounterType, CounterType, Cost> Edge;
-
-  //  INFO: Results
-  typedef std::expected<CounterType, node_error> NodeResult;
-  typedef std::expected<CounterEdge, node_error> EdgeResult;
-
 protected:
-  std::unordered_map<CounterType, std::set<CounterHalfEdge>> graph;
+  std::unordered_map<CounterType, std::set<CounterHalfEdge<CounterType, Cost>>>
+      graph;
   Counter<NodeType, CounterType, H> node_counter{0};
 
   template <VisitOrder v>
@@ -288,13 +300,13 @@ public:
     return node_counter.get_counter(node);
   }
 
-  auto registerEdge(CounterEdge edge) -> void {
+  auto registerEdge(CounterEdge<CounterType, Cost> edge) -> void {
     const auto [from, to, cost] = edge;
     this->graph[from].insert({to, cost});
     return;
   }
 
-  auto modifyEdge(CounterEdge edge, Cost new_cost)
+  auto modifyEdge(CounterEdge<CounterType, Cost> edge, Cost new_cost)
       -> std::optional<edge_error> {
     if (not existEdge(edge))
       return edge_error::duplicate;
@@ -305,7 +317,7 @@ public:
     return std::nullopt;
   }
 
-  auto existEdge(CounterEdge edge) const -> bool {
+  auto existEdge(CounterEdge<CounterType, Cost> edge) const -> bool {
     auto &[from, to, cost] = edge;
     if (!existCounterNode(from))
       return false;
@@ -315,7 +327,7 @@ public:
 
     return (*s).second.contains({to, cost});
   }
-  auto existBlankEdge(CounterBlankEdge edge) const -> bool {
+  auto existBlankEdge(CounterBlankEdge<CounterType> edge) const -> bool {
     /// NOTE: To bypass unused var warning in structured bindings
     auto from = std::get<0>(edge), to = std::get<1>(edge);
     /*auto [from, to] = edge;*/
@@ -330,7 +342,7 @@ public:
              return to == std::get<0>(p);
            }) != st.end();
   }
-  auto existBlankEdge(CounterEdge edge) const -> bool {
+  auto existBlankEdge(CounterEdge<CounterType, Cost> edge) const -> bool {
     auto [from, to, cost] = edge;
     return existBlankEdge({from, to});
   }
@@ -438,6 +450,7 @@ public:
 /// INFO: A DAG is a Directed Acyclic Graph that can be multi-edges, with
 /// edge-cost being different.
 
+// TAG: DAG DEFN
 template <class NodeType, class Cost, class CounterType, class H>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DAG : public DiGraph<NodeType, Cost, CounterType, H> {
@@ -450,6 +463,7 @@ public:
   }
 };
 
+// TAG: UniGraph DEFN
 template <class NodeType, class Cost, class CounterType, class H>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class UniGraph {
@@ -528,8 +542,6 @@ public:
       -> std::tuple<Cost, std::vector<CounterType>>;
   auto bellman_ford(auto compare = std::greater<>());
 
-  /// INFO: Strongly connected components (SCC)
-  auto scc() -> std::vector<UniGraph> const;
   /*Connectivity<CounterType> getConnectivityInfo() {*/
   /*  Connectivity<CounterType> c;*/
   /*  for (auto &[node, neighbors] : this->graph) {*/
@@ -541,7 +553,8 @@ public:
 };
 // A topological sort is a reversed post order
 
-/// INFO: Connectivity is just glorified union find
+/// TAG: CONNECTIVITY DEFN
+/// INFO: Connectivity is just glorified union find, this is from DPV book
 template <class CounterType> class Connectivity {
   std::unordered_map<CounterType, CounterType> uf;
   std::unordered_map<CounterType, uint32_t> rank;
@@ -581,14 +594,7 @@ public:
     requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
   friend class UniGraph;
 };
-
+/////////////////////////////////////////////////////////////////
+/////////////////////////// END DEFN SPACE
+/////////////////////////////////////////////////////////////////
 } // namespace lean_graph
-
-namespace lean_graph {
-/*template class DiGraph<std::string, float_t, uint16_t>;*/
-/*template class DAG<std::string, float_t, uint16_t>;*/
-/*template class DiGraph<uint32_t, uint32_t, uint16_t>;*/
-/*template class DAG<uint32_t, uint32_t, uint16_t>;*/
-
-}; // namespace lean_graph
-/*template class DiGraph<float_t>;*/
