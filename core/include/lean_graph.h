@@ -67,7 +67,8 @@ template <class NodeType, class Cost = float_t,
 class UniGraph;
 
 /// TAG: Connectivity DECL
-template <class CounterType> class Connectivity;
+template <class CounterType, class H = DefaultHashMap<CounterType, CounterType>>
+class Connectivity;
 
 enum class node_error { not_exist, duplicate, general_error };
 enum class edge_error { not_exist, duplicate, general_error };
@@ -555,8 +556,8 @@ public:
 
 /// TAG: CONNECTIVITY DEFN
 /// INFO: Connectivity is just glorified union find, this is from DPV book
-template <class CounterType> class Connectivity {
-  std::unordered_map<CounterType, CounterType> uf;
+template <class CounterType, class H> class Connectivity {
+  H uf;
   std::unordered_map<CounterType, uint32_t> rank;
 
   /// INFO: find with path compression
