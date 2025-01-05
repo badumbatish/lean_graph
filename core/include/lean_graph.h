@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <expected>
+#include <iterator>
 #include <optional>
 #include <queue>
 #include <set>
@@ -20,20 +21,20 @@ namespace lean_graph {
 // such that for values “a” of type “T”, the expression std::hash<T>{}(a)
 // compiles and its result is convertible to std::size_t
 //
-/// TAG: Hashable DECL
+// TAG: Hashable DECL
 template <typename T>
 concept Hashable = requires(T a) {
   { std::hash<T>{}(a) } -> std::convertible_to<std::size_t>;
 };
 
-/// TAG: DefaultHashMap DECL
+// TAG: DefaultHashMap DECL
 template <class NodeType, class CounterType>
 using DefaultHashMap = std::unordered_map<NodeType, CounterType>;
 
-/// TAG: Counter DECL
+// TAG: Counter DECL
 template <class Aspect, class CounterType, class H> class Counter;
 
-/// TAG: DiGraph DECL
+// TAG: DiGraph DECL
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
 template <class NodeType, class Cost = float_t,
@@ -42,7 +43,7 @@ template <class NodeType, class Cost = float_t,
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DiGraph;
 
-/// TAG: DAG DECL
+// TAG: DAG DECL
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
 template <class NodeType, class Cost = float_t,
@@ -51,14 +52,14 @@ template <class NodeType, class Cost = float_t,
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class DAG;
 
-/// TAG: UniGraph DECL
+// TAG: UniGraph DECL
 template <class NodeType, class Cost = float_t,
           class CounterType = std::uint16_t,
           class H = DefaultHashMap<NodeType, CounterType>>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
 class UniGraph;
 
-/// TAG: Connectivity DECL
+// TAG: Connectivity DECL
 template <class CounterType, class H = DefaultHashMap<CounterType, CounterType>>
 class Connectivity;
 
@@ -134,6 +135,7 @@ public:
   }
 };
 
+template <class CounterType, class Cost> class EdgeIte {};
 ///
 // TAG: DiGraph DEFN
 template <class NodeType, class Cost, class CounterType, class H>
@@ -143,6 +145,7 @@ public:
 protected:
   std::unordered_map<CounterType, std::set<CounterHalfEdge<CounterType, Cost>>>
       graph;
+
   Counter<NodeType, CounterType, H> node_counter{0};
 
   template <VisitOrder v>
@@ -280,6 +283,15 @@ public:
     return node_counter.counter_exceeds(node);
   }
 
+  virtual auto edges() const -> std::vector<CounterEdge<CounterType, Cost>> {
+    decltype(edges()) result;
+    for (auto &[node, neighbors_info] : this->graph) {
+      for (auto &[to_neighbor, cost] : neighbors_info) {
+        result.push_back({node, to_neighbor, cost});
+      }
+    }
+    return result;
+  }
   /// INFO: Performs full dfs of all nodes connected to a node
   /// with either pre or post order from a single node
   template <VisitOrder v> auto dfs() const -> std::vector<CounterType> {
@@ -372,6 +384,7 @@ public:
 
   /// INFO: Strongly connected components (SCC)
   auto scc() -> std::vector<DiGraph> const;
+  template <class CT, class Cst> friend class EdgeIte;
 };
 
 /// INFO: A DAG is a Directed Acyclic Graph that can be multi-edges, with
@@ -417,18 +430,47 @@ public:
     return std::nullopt;
   }
 
-  /*Connectivity<CounterType> getConnectivityInfo() {*/
-  /*  Connectivity<CounterType> c;*/
-  /*  for (auto &[node, neighbors] : this->graph) {*/
-  /*    for (auto [neighbor, cost] : neighbors)*/
-  /*      c.unite(node, neighbor);*/
-  /*  }*/
-  /*  return c;*/
-  /*}*/
+  auto edges() const -> std::vector<CounterEdge<CounterType, Cost>> override {
+    decltype(edges()) result;
+    std::unordered_set<CounterType> processed;
+    for (auto &[node, neighbors_info] : this->graph) {
+      for (auto &[to_neighbor, cost] : neighbors_info) {
+        if (node != to_neighbor && processed.contains(node))
+          continue;
+        result.push_back({node, to_neighbor, cost});
+      }
+      processed.insert(node);
+    }
+    return result;
+  }
+  auto mst_kruskal() -> std::vector<CounterEdge<CounterType, Cost>> {
+    Connectivity<CounterType, H> conn;
+
+    auto edges = this->edges();
+    std::priority_queue<CounterEdge<CounterType, Cost>,
+                        std::vector<CounterEdge<CounterType, Cost>>,
+                        decltype([](auto a, auto b) {
+                          return std::get<2>(a) > std::get<2>(b);
+                        })>
+        pq{};
+    pq.push_range(edges);
+
+    decltype(mst_kruskal()) mst;
+    while (!pq.empty()) {
+      auto [from, to, cost] = pq.top();
+      pq.pop();
+      if (not conn.is_connected(from, to)) {
+        conn.unite(from, to);
+        mst.push_back({from, to, cost});
+      }
+    }
+
+    return mst;
+  }
 };
 // A topological sort is a reversed post order
 
-/// TAG: CONNECTIVITY DEFN
+// TAG: CONNECTIVITY DEFN
 /// INFO: Connectivity is just glorified union find, this is from DPV book
 template <class CounterType, class H> class Connectivity {
   H uf;
@@ -442,6 +484,11 @@ template <class CounterType, class H> class Connectivity {
     if (a != uf[a])
       uf[a] = find(uf[a]);
     return uf[a];
+  }
+
+public:
+  bool is_connected(CounterType a, CounterType b) {
+    return this->find(a) == this->find(b);
   }
 
   /// INFO: Unite (Union) a with b
@@ -459,15 +506,6 @@ template <class CounterType, class H> class Connectivity {
         rank[rb] = rank[rb] + 1;
     }
   }
-
-public:
-  bool is_connected(CounterType a, CounterType b) {
-    return this->find(a) == this->find(b);
-  }
-
-  template <class NodeType, class Cost, class C>
-    requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
-  friend class UniGraph;
 };
 /////////////////////////////////////////////////////////////////
 /////////////////////////// END DEFN SPACE
