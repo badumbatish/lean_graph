@@ -33,14 +33,6 @@ using DefaultHashMap = std::unordered_map<NodeType, CounterType>;
 /// TAG: Counter DECL
 template <class Aspect, class CounterType, class H> class Counter;
 
-/// TAG: BasicGraph DECL
-template <template <class, class, class, class> class DerivedGraph,
-          class NodeType, class Cost = float_t,
-          class CounterType = std::uint16_t,
-          class H = DefaultHashMap<NodeType, CounterType>>
-  requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
-class BasicGraph;
-
 /// TAG: DiGraph DECL
 /// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
 /// being different.
@@ -142,84 +134,11 @@ public:
   }
 };
 
-// TAG: BasicGraph DEFN
-/// INFO: A BasicGraph is just a DiGraph that can be multi-edges, with edge-cost
-/// being different.
-template <template <class, class, class, class> class DerivedGraph,
-          class NodeType, class Cost, class CounterType, class H>
-  requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
-class BasicGraph {
-public:
-  using DerivedGraphType = DerivedGraph<NodeType, Cost, CounterType, H>;
-
-  auto registerNode(NodeType node) -> CounterType {
-    return static_cast<DerivedGraphType *>(this)->registerNode(node);
-  }
-  auto registerEdge(CounterEdge<CounterType, Cost> edge) -> void {
-    return static_cast<DerivedGraphType *>(this)->registerEdge(edge);
-  }
-  auto modifyEdge(CounterEdge<CounterType, Cost> edge, Cost new_cost)
-      -> std::optional<edge_error> {
-    return static_cast<DerivedGraphType *>(this)->modifyEdge(edge, new_cost);
-  }
-
-  auto existEdge(CounterEdge<CounterType, Cost> edge) const -> bool {
-    return static_cast<DerivedGraphType *>(this)->existEdge(edge);
-  }
-  auto existBlankEdge(CounterBlankEdge<CounterType> edge) const -> bool {
-    return static_cast<DerivedGraphType *>(this)->existBlankEdge(edge);
-  }
-  auto existBlankEdge(CounterEdge<CounterType, Cost> edge) const -> bool {
-    return static_cast<DerivedGraphType *>(this)->existBlankEdge(edge);
-  }
-
-  /// INFO: Performs full dfs of all nodes connected to a node
-  /// with either pre or post order from a single node
-  template <VisitOrder v> auto dfs() const -> std::vector<CounterType> {
-    return static_cast<DerivedGraphType *>(this)->dfs();
-  }
-
-  /// INFO: Performs full dfs of all nodes connected to a node
-  /// with either pre or post order from a single node
-  template <VisitOrder v> auto bfs() const -> std::vector<CounterType> {
-
-    return static_cast<DerivedGraphType *>(this)->bfs();
-  }
-
-  /// INFO: Performs exploration of all nodes connected to a node in dfs fashion
-  /// with either pre or post order from a single node
-  template <VisitOrder v>
-  auto explore_dfs(CounterType from) const -> std::vector<CounterType> {
-    return static_cast<DerivedGraphType *>(this)->explore_dfs(from);
-  }
-
-  /// INFO: Performs exploration of all nodes connected to a node in bfs fashion
-  /// with either pre or post order as template from a single node
-  template <VisitOrder v>
-  auto explore_bfs(CounterType from) const -> std::vector<CounterType> {
-
-    return static_cast<DerivedGraphType *>(this)->explore_bfs(from);
-  }
-
-  /// INFO: Single source, single path dijkstra algorithm
-  /// User discretion required, user might input negative cost.
-  ///
-  /// Successful djikstra will contain at least a vector of two nodes.
-  /// If you're not a nerd, please be careful
-  auto djikstra(CounterType start, CounterType end,
-                auto compare = std::greater<>())
-      -> std::tuple<Cost, std::vector<CounterType>> {
-    return static_cast<DerivedGraphType *>(this)->djikstra(start, end, compare);
-  }
-  auto bellman_ford(auto compare = std::greater<>()) {
-    return static_cast<DerivedGraphType *>(this)->bellman_ford(compare);
-  }
-};
 ///
 // TAG: DiGraph DEFN
 template <class NodeType, class Cost, class CounterType, class H>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
-class DiGraph : public BasicGraph<DiGraph, NodeType, Cost, CounterType, H> {
+class DiGraph {
 public:
 protected:
   std::unordered_map<CounterType, std::set<CounterHalfEdge<CounterType, Cost>>>
