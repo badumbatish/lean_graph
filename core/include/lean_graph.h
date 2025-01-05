@@ -131,11 +131,11 @@ template <class Aspect, class CounterType, class H> class Counter {
 
 public:
   explicit Counter(CounterType start_from) : count(start_from) {}
-  bool exist(Aspect aspect) const {
+  bool exist(const Aspect &aspect) const {
     return counter.find(aspect) != counter.end();
   }
-  bool counter_exceeds(CounterType aspect) const { return count > aspect; }
-  CounterType get_counter(Aspect aspect) {
+  bool counter_exceeds(CounterType ct) const { return count > ct; }
+  CounterType get_counter(const Aspect &aspect) {
     if (not exist(aspect))
       counter[aspect] = count++;
     return counter[aspect];
@@ -152,16 +152,26 @@ class BasicGraph {
 public:
   using DerivedGraphType = DerivedGraph<NodeType, Cost, CounterType, H>;
 
-  auto registerNode(NodeType node) -> CounterType;
-  auto registerEdge(CounterEdge<CounterType, Cost> edge) -> void;
+  auto registerNode(NodeType node) -> CounterType {
+    return static_cast<DerivedGraphType *>(this)->registerNode(node);
+  }
+  auto registerEdge(CounterEdge<CounterType, Cost> edge) -> void {
+    return static_cast<DerivedGraphType *>(this)->registerEdge(edge);
+  }
   auto modifyEdge(CounterEdge<CounterType, Cost> edge, Cost new_cost)
-      -> std::optional<edge_error>;
+      -> std::optional<edge_error> {
+    return static_cast<DerivedGraphType *>(this)->modifyEdge(edge, new_cost);
+  }
 
-  auto existEdge(CounterEdge<CounterType, Cost> edge) const -> bool;
-  auto existBlankEdge(CounterBlankEdge<CounterType> edge) const -> bool;
-  auto existBlankEdge(CounterEdge<CounterType, Cost> edge) const -> bool;
-  auto existNode(NodeType node) const -> bool;
-  auto existCounterNode(CounterType node) const -> bool;
+  auto existEdge(CounterEdge<CounterType, Cost> edge) const -> bool {
+    return static_cast<DerivedGraphType *>(this)->existEdge(edge);
+  }
+  auto existBlankEdge(CounterBlankEdge<CounterType> edge) const -> bool {
+    return static_cast<DerivedGraphType *>(this)->existBlankEdge(edge);
+  }
+  auto existBlankEdge(CounterEdge<CounterType, Cost> edge) const -> bool {
+    return static_cast<DerivedGraphType *>(this)->existBlankEdge(edge);
+  }
 
   /// INFO: Performs full dfs of all nodes connected to a node
   /// with either pre or post order from a single node
@@ -297,20 +307,20 @@ protected:
   }
 
 public:
-  auto registerNode(NodeType node) -> CounterType {
+  auto registerNode(const NodeType &node) -> CounterType {
     return node_counter.get_counter(node);
   }
 
-  auto registerEdge(CounterEdge<CounterType, Cost> edge) -> void {
+  virtual auto registerEdge(CounterEdge<CounterType, Cost> edge) -> void {
     const auto [from, to, cost] = edge;
     this->graph[from].insert({to, cost});
     return;
   }
 
-  auto modifyEdge(CounterEdge<CounterType, Cost> edge, Cost new_cost)
+  virtual auto modifyEdge(CounterEdge<CounterType, Cost> edge, Cost new_cost)
       -> std::optional<edge_error> {
-    if (not existEdge(edge))
-      return edge_error::duplicate;
+    if (not this->existEdge(edge)) // if edge doesn't exist
+      return edge_error::not_exist;
 
     const auto &[from, to, old_cost] = edge;
     this->graph[from].erase({to, old_cost});
@@ -346,9 +356,6 @@ public:
   auto existBlankEdge(CounterEdge<CounterType, Cost> edge) const -> bool {
     auto [from, to, cost] = edge;
     return existBlankEdge({from, to});
-  }
-  auto existNode(NodeType node) const -> bool {
-    return node_counter.exist(node);
   }
   auto existCounterNode(CounterType node) const -> bool {
     return node_counter.counter_exceeds(node);
@@ -402,7 +409,7 @@ public:
   /// If you're not a nerd, please be careful
   auto djikstra(CounterType start, CounterType end,
                 auto compare = std::greater<>())
-      -> std::tuple<Cost, std::vector<CounterType>> {
+      -> std::tuple<Cost, std::vector<CounterType>> const {
     if (not existNode(start))
       return {0, {}};
     std::unordered_map<CounterType, Cost> dist_from_start;
@@ -442,7 +449,7 @@ public:
 
     return {dist_from_start[end], djikstra_path};
   }
-  auto bellman_ford(auto compare = std::greater<>());
+  auto bellman_ford(auto compare = std::greater<>()) const;
 
   /// INFO: Strongly connected components (SCC)
   auto scc() -> std::vector<DiGraph> const;
@@ -467,81 +474,29 @@ public:
 // TAG: UniGraph DEFN
 template <class NodeType, class Cost, class CounterType, class H>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
-class UniGraph {
+class UniGraph : DiGraph<NodeType, Cost, CounterType, H> {
 
 public:
-  //  INFO: Edges type used internally and the user uses to interface with the
-  //  graph
-  using CounterEdge = std::tuple<CounterType, CounterType, Cost>;
-  using CounterBlankEdge = std::tuple<CounterType, CounterType>;
-  using CounterHalfEdge = std::tuple<CounterType, Cost>;
-
-  // INFO: Edge that the user use to register an edge
-  using Edge = std::tuple<CounterType, CounterType, Cost>;
-
-  //  INFO: Results
-  using NodeResult = std::expected<CounterType, node_error>;
-  using EdgeResult = std::expected<CounterEdge, node_error>;
-
-protected:
-  std::unordered_map<CounterType, std::set<CounterHalfEdge>> graph;
-  Counter<NodeType, CounterType, H> node_counter{0};
-
-  template <VisitOrder v>
-  auto explore_dfs_protected(
-      CounterType from,
-      std::optional<std::reference_wrapper<std::unordered_set<CounterType>>>
-          pre_visited = std::nullopt) const -> std::vector<CounterType>;
-
-  template <VisitOrder v>
-  auto explore_bfs_protected(
-      CounterType from,
-      std::optional<std::reference_wrapper<std::unordered_set<CounterType>>>
-          pre_visited = std::nullopt) const -> std::vector<CounterType>;
-
-public:
-  auto registerNode(NodeType node) -> CounterType;
-
-  auto registerEdge(CounterEdge edge) -> void;
-
-  auto modifyEdge(CounterEdge edge, Cost new_cost) -> std::optional<edge_error>;
-
-  auto existEdge(CounterEdge edge) const -> bool;
-  auto existBlankEdge(CounterBlankEdge edge) const -> bool;
-  auto existBlankEdge(CounterEdge edge) const -> bool {
-    auto [from, to, cost] = edge;
-    return existBlankEdge({from, to});
+  auto registerEdge(CounterEdge<CounterType, Cost> edge) -> void override {
+    const auto [from, to, cost] = edge;
+    this->graph[from].insert({to, cost});
+    this->graph[to].insert({from, cost});
+    return;
   }
-  auto existNode(NodeType node) const -> bool;
-  auto existCounterNode(CounterType node) const -> bool;
 
-  /// INFO: Performs full dfs of all nodes connected to a node
-  /// with either pre or post order from a single node
-  template <VisitOrder v> auto dfs() const -> std::vector<CounterType>;
+  auto modifyEdge(CounterEdge<CounterType, Cost> edge, Cost new_cost)
+      -> std::optional<edge_error> override {
 
-  /// INFO: Performs full dfs of all nodes connected to a node
-  /// with either pre or post order from a single node
-  template <VisitOrder v> auto bfs() const -> std::vector<CounterType>;
+    if (not this->existEdge(edge)) // if edge doesn't exist
+      return edge_error::not_exist;
 
-  /// INFO: Performs exploration of all nodes connected to a node in dfs fashion
-  /// with either pre or post order from a single node
-  template <VisitOrder v>
-  auto explore_dfs(CounterType from) const -> std::vector<CounterType>;
-
-  /// INFO: Performs exploration of all nodes connected to a node in bfs fashion
-  /// with either pre or post order as template from a single node
-  template <VisitOrder v>
-  auto explore_bfs(CounterType from) const -> std::vector<CounterType>;
-
-  /// INFO: Single source, single path dijkstra algorithm
-  /// User discretion required, user might input negative cost.
-  ///
-  /// Successful djikstra will contain at least a vector of two nodes.
-  /// If you're not a nerd, please be careful
-  auto djikstra(CounterType start, CounterType end,
-                auto compare = std::greater<>())
-      -> std::tuple<Cost, std::vector<CounterType>>;
-  auto bellman_ford(auto compare = std::greater<>());
+    const auto &[from, to, old_cost] = edge;
+    this->graph[from].erase({to, old_cost});
+    this->graph[from].insert({to, new_cost});
+    this->graph[to].erase({from, old_cost});
+    this->graph[to].insert({from, new_cost});
+    return std::nullopt;
+  }
 
   /*Connectivity<CounterType> getConnectivityInfo() {*/
   /*  Connectivity<CounterType> c;*/

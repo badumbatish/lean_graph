@@ -9,6 +9,7 @@ template class DiGraph<std::string, float_t, uint16_t>;
 template class DAG<std::string, float_t, uint16_t>;
 template class DiGraph<uint32_t, uint32_t, uint16_t>;
 template class DAG<uint32_t, uint32_t, uint16_t>;
+template class UniGraph<uint32_t, uint32_t, uint16_t>;
 
 } // namespace lean_graph
 template <class N, class C, class T> void make_graph() {
@@ -50,6 +51,7 @@ template <class N, class C, class T> void make_graph() {
   /*auto if (auto a = std::get<std::vector<T>>(dfs_pre)) { print_node(a); }*/
   /*print_node(dfs_post);*/
 }
+
 int main() {
 
   make_graph<uint32_t, uint32_t, uint32_t>();
