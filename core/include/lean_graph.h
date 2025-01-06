@@ -333,6 +333,10 @@ public:
     return explore_bfs_protected<v>(from, std::nullopt);
   }
 
+  /// INFO: Johnson algorithm
+  virtual auto cycles() const -> std::vector<std::vector<CounterType>> {
+    return {};
+  }
   /// INFO: Single source, single path dijkstra algorithm
   /// User discretion required, user might input negative cost.
   ///
@@ -442,6 +446,9 @@ public:
       processed.insert(node);
     }
     return result;
+  }
+  auto cycles() const -> std::vector<std::vector<CounterType>> override {
+    return {};
   }
   auto mst_kruskal() -> std::vector<CounterEdge<CounterType, Cost>> {
     Connectivity<CounterType, H> conn;
