@@ -348,7 +348,8 @@ public:
   /// INFO: Johnson algorithm
   [[nodiscard("\nDON'T DISCARD THE RESULT OF cycles(), WHICH RETURNS A VECTOR "
               "OF ELEMENTARY CYCLES\n")]]
-  virtual auto cycles() const -> std::vector<std::vector<CounterType>> {
+  virtual auto /* DiGraph */ cycles() const
+      -> std::vector<std::vector<CounterType>> {
     return {};
   }
   /// INFO: Single source, single path dijkstra algorithm
@@ -356,12 +357,14 @@ public:
   ///
   /// Successful djikstra will contain at least a vector of two nodes.
   /// If you're not a nerd, please be careful
-  [[nodiscard("\nDon't discard the result of djikstra, which returns a pair of "
-              "<lowest Cost, path of lowest cost>\n")]]
-  auto djikstra(CounterType start, CounterType end)
-      -> std::pair<Cost, std::vector<CounterType>> const {
+  [[nodiscard(
+      "\nDon't discard the result of djikstra's singular shorest path.\n")]]
+  virtual auto /* DiGraph */ singular_shortest_path(CounterType start,
+                                                    CounterType end) const
+      -> std::pair<std::unordered_map<CounterType, Cost>,
+                   std::unordered_map<CounterType, CounterType>> {
     if (not existCounterNode(start))
-      return {0, {}};
+      return {{}, {}};
     std::unordered_map<CounterType, Cost> dist_from_start;
     std::unordered_map<CounterType, CounterType> prev;
     dist_from_start[start] = 0;
@@ -375,7 +378,7 @@ public:
       auto [dist_node, node] = pq.top();
       pq.pop();
 
-      for (auto [neighbor, cost] : graph[node]) {
+      for (auto [neighbor, cost] : (*graph.find(node)).second) {
         if (not dist_from_start.contains(neighbor) or
             (dist_from_start[neighbor] > dist_from_start[node] + cost)) {
           dist_from_start[neighbor] = dist_from_start[node] + cost;
@@ -386,18 +389,9 @@ public:
     }
 
     if (not prev.contains(end))
-      return {0, {}};
+      return {{}, {}};
 
-    auto p = prev[end];
-    std::vector<CounterType> djikstra_path = {end};
-    while (p != start) {
-      djikstra_path.push_back(p);
-      p = prev[p];
-    }
-    djikstra_path.push_back(start);
-    std::ranges::reverse(djikstra_path);
-
-    return {dist_from_start[end], djikstra_path};
+    return {dist_from_start, prev};
   }
 
   /// INFO: Single source, multi paths bellman ford algorithm
@@ -467,13 +461,44 @@ template <class NodeType, class Cost, class CounterType, class H>
 class DAG : public DiGraph<NodeType, Cost, CounterType, H> {
 public:
   // A topological sort is a reversed post order
-  auto topo_sort() -> std::vector<CounterType> const {
+  auto /* DAG */ topo_sort() const -> std::vector<CounterType> {
     auto dfs_result = this->template dfs<VisitOrder::post>();
     std::ranges::reverse(dfs_result);
     return dfs_result;
   }
-};
 
+  virtual auto /* DAG */ singular_shortest_path(CounterType start,
+                                                CounterType end) const
+      -> std::pair<std::unordered_map<CounterType, Cost>,
+                   std::unordered_map<CounterType, CounterType>> override {
+
+    if (not this->existCounterNode(start))
+      return {{}, {}};
+    std::unordered_map<CounterType, Cost> dist_from_start;
+    std::unordered_map<CounterType, CounterType> prev;
+    dist_from_start[start] = 0;
+
+    auto linearized_graph_nodes = this->topo_sort();
+
+    for (auto node : linearized_graph_nodes) {
+      for (auto [neighbor, cost] : (*this->graph.find(node)).second) {
+
+        if (not dist_from_start.contains(neighbor) or
+            (dist_from_start[neighbor] > dist_from_start[node] + cost)) {
+          dist_from_start[neighbor] = dist_from_start[node] + cost;
+          prev[neighbor] = node;
+        }
+      }
+    }
+
+    // if in the end we don't have the end node, sth seriously wrong with you or
+    // me hahahah
+    if (not prev.contains(end))
+      return {{}, {}};
+
+    return {dist_from_start, prev};
+  }
+};
 // TAG: UniGraph DEFN
 template <class NodeType, class Cost, class CounterType, class H>
   requires Hashable<NodeType> and std::is_arithmetic_v<Cost>
