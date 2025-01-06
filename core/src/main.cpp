@@ -42,6 +42,8 @@ template <class N, class C, class T> void make_graph() {
     std::cout << std::endl;
   };
 
+  graph.djikstra(a, f);
+  graph.bellman_ford(a);
   auto dfs_pre = graph.template explore_dfs<LG::VisitOrder::pre>(a);
   auto dfs_post = graph.template explore_dfs<LG::VisitOrder::post>(a);
   print_node(dfs_pre);

@@ -1,15 +1,13 @@
 #pragma once
 #include <__expected/unexpected.h>
 #include <algorithm>
-#include <cmath>
-#include <expected>
-#include <iterator>
+#include <functional>
+#include <limits>
 #include <optional>
 #include <queue>
 #include <set>
 #include <stack>
 #include <tuple>
-#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -78,12 +76,6 @@ using CounterHalfEdge = std::tuple<CounterType, Cost>;
 template <class CounterType, class Cost>
 using Edge = std::tuple<CounterType, CounterType, Cost>;
 
-// TAG: RESULT DECL
-template <class CounterType, class Cost>
-using NodeResult = std::expected<CounterType, node_error>;
-template <class CounterType, class Cost>
-using EdgeResult = std::expected<CounterEdge<CounterType, Cost>, node_error>;
-
 } // namespace lean_graph
 
 /////////////////////////////////////////////////////////////////
@@ -127,12 +119,14 @@ public:
   bool exist(const Aspect &aspect) const {
     return counter.find(aspect) != counter.end();
   }
+
   bool counter_exceeds(CounterType ct) const { return count > ct; }
   CounterType get_counter(const Aspect &aspect) {
     if (not exist(aspect))
       counter[aspect] = count++;
     return counter[aspect];
   }
+  CounterType get_counter() const { return count; }
 };
 
 template <class CounterType, class Cost> class EdgeIte {};
@@ -147,7 +141,7 @@ protected:
       graph;
 
   Counter<NodeType, CounterType, H> node_counter{0};
-
+  CounterType num_node, num_edge;
   template <VisitOrder v>
   auto explore_dfs_protected(
       CounterType from,
@@ -199,7 +193,7 @@ protected:
     std::unordered_set<CounterType> &visited =
         pre_visited.has_value() ? pre_visited->get() : local_visited;
     std::vector<CounterType> result;
-    if (not existNode(from))
+    if (not existCounterNode(from))
       return {};
 
     q.push(tup(from, VisitOrder::pre));
@@ -230,11 +224,15 @@ protected:
 
 public:
   auto registerNode(const NodeType &node) -> CounterType {
+    if (!node_counter.exist(node))
+      num_node++;
     return node_counter.get_counter(node);
   }
 
   virtual auto registerEdge(CounterEdge<CounterType, Cost> edge) -> void {
     const auto [from, to, cost] = edge;
+    if (!existEdge(edge))
+      num_edge++;
     this->graph[from].insert({to, cost});
     return;
   }
@@ -245,7 +243,11 @@ public:
       return edge_error::not_exist;
 
     const auto &[from, to, old_cost] = edge;
+    const CounterEdge<CounterType, Cost> new_edge = {from, to, new_cost};
     this->graph[from].erase({to, old_cost});
+    num_edge--;
+    if (!this->existEdge(new_edge))
+      num_edge++;
     this->graph[from].insert({to, new_cost});
     return std::nullopt;
   }
@@ -294,7 +296,10 @@ public:
   }
   /// INFO: Performs full dfs of all nodes connected to a node
   /// with either pre or post order from a single node
-  template <VisitOrder v> auto dfs() const -> std::vector<CounterType> {
+  template <VisitOrder v>
+  [[nodiscard("\nDON'T DISCARD THE RESULT OF dfs() - DEPTH FIRST "
+              "SEARCH ON THE WHOLE GRAPH.\n")]]
+  auto dfs() const -> std::vector<CounterType> {
     std::unordered_set<CounterType> visited;
     std::vector<CounterType> result;
     for (auto [node, st] : graph) {
@@ -308,7 +313,10 @@ public:
 
   /// INFO: Performs full dfs of all nodes connected to a node
   /// with either pre or post order from a single node
-  template <VisitOrder v> auto bfs() const -> std::vector<CounterType> {
+  template <VisitOrder v>
+  [[nodiscard("\nDON'T DISCARD THE RESULT OF bfs() - BREADTH FIRST "
+              "SEARCH ON THE WHOLE GRAPH.\n")]]
+  auto bfs() const -> std::vector<CounterType> {
     std::unordered_set<CounterType> visited;
     std::vector<CounterType> result;
     for (auto [node, st] : graph) {
@@ -322,6 +330,8 @@ public:
   /// INFO: Performs exploration of all nodes connected to a node in dfs fashion
   /// with either pre or post order from a single node
   template <VisitOrder v>
+  [[nodiscard("\nDON'T DISCARD THE RESULT OF explore_dfs() - DEPTH FIRST "
+              "SEARCH OF A SINGULAR NODE.\n")]]
   auto explore_dfs(CounterType from) const -> std::vector<CounterType> {
     return explore_dfs_protected<v>(from, std::nullopt);
   }
@@ -329,11 +339,15 @@ public:
   /// INFO: Performs exploration of all nodes connected to a node in bfs fashion
   /// with either pre or post order as template from a single node
   template <VisitOrder v>
+  [[nodiscard("\nDON'T DISCARD THE RESULT OF explore_bfs() - BREADTH FIRST "
+              "SEARCH OF A SINGULAR NODE.\n")]]
   auto explore_bfs(CounterType from) const -> std::vector<CounterType> {
     return explore_bfs_protected<v>(from, std::nullopt);
   }
 
   /// INFO: Johnson algorithm
+  [[nodiscard("\nDON'T DISCARD THE RESULT OF cycles(), WHICH RETURNS A VECTOR "
+              "OF ELEMENTARY CYCLES\n")]]
   virtual auto cycles() const -> std::vector<std::vector<CounterType>> {
     return {};
   }
@@ -342,18 +356,19 @@ public:
   ///
   /// Successful djikstra will contain at least a vector of two nodes.
   /// If you're not a nerd, please be careful
-  auto djikstra(CounterType start, CounterType end,
-                auto compare = std::greater<>())
-      -> std::tuple<Cost, std::vector<CounterType>> const {
-    if (not existNode(start))
+  [[nodiscard("\nDon't discard the result of djikstra, which returns a pair of "
+              "<lowest Cost, path of lowest cost>\n")]]
+  auto djikstra(CounterType start, CounterType end)
+      -> std::pair<Cost, std::vector<CounterType>> const {
+    if (not existCounterNode(start))
       return {0, {}};
     std::unordered_map<CounterType, Cost> dist_from_start;
     std::unordered_map<CounterType, CounterType> prev;
     dist_from_start[start] = 0;
     std::priority_queue<std::tuple<Cost, CounterType>,
                         std::vector<std::tuple<Cost, CounterType>>,
-                        decltype(compare)>
-        pq(compare);
+                        decltype(std::greater<>())>
+        pq(std::greater<>{});
 
     pq.emplace(dist_from_start[start], start);
     while (not pq.empty()) {
@@ -362,8 +377,8 @@ public:
 
       for (auto [neighbor, cost] : graph[node]) {
         if (not dist_from_start.contains(neighbor) or
-            (dist_from_start[neighbor] > dist_node[node] + cost)) {
-          dist_from_start[neighbor] = dist_node[node] + cost;
+            (dist_from_start[neighbor] > dist_from_start[node] + cost)) {
+          dist_from_start[neighbor] = dist_from_start[node] + cost;
           prev[neighbor] = node;
           pq.emplace(dist_from_start[neighbor], neighbor);
         }
@@ -384,7 +399,59 @@ public:
 
     return {dist_from_start[end], djikstra_path};
   }
-  auto bellman_ford(auto compare = std::greater<>()) const;
+
+  /// INFO: Single source, multi paths bellman ford algorithm
+  /// User discretion required, user might input negative cost cycles.
+  ///
+  /// Successful bellman ford will contain pair of non empty maps.
+  /// If you're not a nerd, please be careful
+  [[nodiscard("\nDon't discard the result of bellman_ford\n")]]
+  auto bellman_ford(CounterType start) const
+      -> std::pair<std::unordered_map<CounterType, Cost>,
+                   std::unordered_map<CounterType, CounterType>> const {
+    std::unordered_map<CounterType, Cost> cost_map;
+    std::unordered_map<CounterType, CounterType> prev;
+
+    auto edges = this->edges();
+
+    auto num_vertex_minus_1 = this->num_node - 1;
+    cost_map[start] = 0;
+    while (num_vertex_minus_1) {
+      for (auto &[from, to, cost] : edges) {
+        if (not cost_map.contains(from) && not cost_map.contains(to))
+          continue;
+        if (not cost_map.contains(from)) // if we don't do this, big fat ass
+          continue;                      // trouble of over-flowing
+
+        auto &a = cost_map[from];
+        auto b = cost_map.contains(to) ? cost_map[to]
+                                       : std::numeric_limits<Cost>::max();
+
+        if (a + cost < b) {
+          a = a + cost;
+          prev[to] = from;
+        }
+      }
+
+      num_vertex_minus_1--;
+    }
+    for (auto &[from, to, cost] : edges) {
+      if (not cost_map.contains(from) && not cost_map.contains(to))
+        continue;
+      if (not cost_map.contains(from))
+        continue;
+
+      auto &a = cost_map[from];
+      auto b = cost_map.contains(to) ? cost_map[to]
+                                     : std::numeric_limits<Cost>::max();
+
+      // INFO: negative cycle detected
+      if (a + cost < b)
+        return {};
+    }
+
+    return {cost_map, prev};
+  }
 
   /// INFO: Strongly connected components (SCC)
   auto scc() -> std::vector<DiGraph> const;
@@ -413,28 +480,34 @@ template <class NodeType, class Cost, class CounterType, class H>
 class UniGraph : DiGraph<NodeType, Cost, CounterType, H> {
 
 public:
-  auto registerEdge(CounterEdge<CounterType, Cost> edge) -> void override {
+  auto /* UniGraph */ registerEdge(CounterEdge<CounterType, Cost> edge)
+      -> void override {
+    if (!this->existEdge(edge))
+      this->num_edge++;
     const auto [from, to, cost] = edge;
     this->graph[from].insert({to, cost});
     this->graph[to].insert({from, cost});
     return;
   }
 
-  auto modifyEdge(CounterEdge<CounterType, Cost> edge, Cost new_cost)
+  auto /* UniGraph */ modifyEdge(CounterEdge<CounterType, Cost> edge,
+                                 Cost new_cost)
       -> std::optional<edge_error> override {
+    const auto &[from, to, old_cost] = edge;
 
-    if (not this->existEdge(edge)) // if edge doesn't exist
+    decltype(edge) forward_edge = {from, to, old_cost};
+    decltype(edge) backward_edge = {to, from, old_cost};
+
+    using dg = DiGraph<NodeType, Cost, CounterType, H>;
+
+    if (dg::modifyEdge(forward_edge, new_cost) == edge_error::not_exist)
       return edge_error::not_exist;
 
-    const auto &[from, to, old_cost] = edge;
-    this->graph[from].erase({to, old_cost});
-    this->graph[from].insert({to, new_cost});
-    this->graph[to].erase({from, old_cost});
-    this->graph[to].insert({from, new_cost});
-    return std::nullopt;
+    return dg::modifyEdge(backward_edge, new_cost);
   }
 
-  auto edges() const -> std::vector<CounterEdge<CounterType, Cost>> override {
+  auto /* UniGraph */ edges() const
+      -> std::vector<CounterEdge<CounterType, Cost>> override {
     decltype(edges()) result;
     std::unordered_set<CounterType> processed;
     for (auto &[node, neighbors_info] : this->graph) {
@@ -447,10 +520,12 @@ public:
     }
     return result;
   }
-  auto cycles() const -> std::vector<std::vector<CounterType>> override {
+  auto /* UniGraph */ cycles() const
+      -> std::vector<std::vector<CounterType>> override {
     return {};
   }
-  auto mst_kruskal() -> std::vector<CounterEdge<CounterType, Cost>> {
+  auto /* UniGraph */ mst_kruskal()
+      -> std::vector<CounterEdge<CounterType, Cost>> {
     Connectivity<CounterType, H> conn;
 
     auto edges = this->edges();
@@ -484,7 +559,7 @@ template <class CounterType, class H> class Connectivity {
   std::unordered_map<CounterType, uint32_t> rank;
 
   /// INFO: find with path compression
-  CounterType find(CounterType a) {
+  CounterType /* Connectivity */ find(CounterType a) {
     if (uf.find(a) == uf.end()) // lazy rank computation
       return a;
 
@@ -494,12 +569,13 @@ template <class CounterType, class H> class Connectivity {
   }
 
 public:
-  bool is_connected(CounterType a, CounterType b) {
+  bool /* Connectivity */ is_connected(CounterType a, CounterType b) {
     return this->find(a) == this->find(b);
   }
 
   /// INFO: Unite (Union) a with b
-  void unite(CounterType a, CounterType b) {
+  //
+  void /* Connectivity */ unite(CounterType a, CounterType b) {
     auto ra = this->find(a);
     auto rb = this->find(b);
 
